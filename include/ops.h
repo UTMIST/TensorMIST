@@ -19,10 +19,11 @@ void tm_transpose_backward(const float *grad_out, float *grad_a, size_t rows, si
 void tm_add(const float *a, const float *b, float *out, size_t m, size_t n);
 void tm_add_backward(const float *grad_out, float *grad_a, float *grad_b, size_t m, size_t n);
 
+// elementwise add
 void tm_subtract(const float *a, const float *b, float *out, size_t m, size_t n);
 void tm_subtract_backward(const float *grad_out, float *grad_a, float *grad_b, size_t m, size_t n);
 
-// elementwise
+// elementwise mul
 void tm_multiply(const float *a, const float *b, float *out, size_t m, size_t n);
 void tm_multiply_backward(const float *a, const float *b, const float *grad_out,
                           float *grad_a, float *grad_b, size_t m, size_t n);
@@ -50,6 +51,6 @@ void tm_bias_add_backward(const float *grad_out, float *grad_a, float *grad_bias
 // ReLU
 void tm_relu(const float *a, float *out, size_t n);
 void tm_relu_backward(const float *a, const float *grad_out,
-                      float *grad_in, size_t n);
+                      float *grad_in, size_t m, size_t n);
 
 #endif
