@@ -5,8 +5,8 @@
 
 int main() {
     printf("Hello TensorMIST");
-    float a[1000] = {0}; // 100x100 
-    float b[1000]; // 100x100
-    tm_relu(a, b, 100, 100);
+    float a[100] = {0}; // 10x10 
+    float b[100]; // 10x10
+    tm_relu(a, b, 10, 10);
     return 0;
 }
