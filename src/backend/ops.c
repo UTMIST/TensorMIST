@@ -1,4 +1,4 @@
-#include "../../include/ops.h"
+#include "ops.h"
 
 void tm_add(const float *a, const float *b, float *out, size_t m, size_t n) {
     for (int i = 0; i < m; i++) {
