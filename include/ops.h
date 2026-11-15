@@ -49,7 +49,7 @@ void tm_bias_add_backward(const float *grad_out, float *grad_a, float *grad_bias
                           size_t m, size_t n);
 
 // ReLU
-void tm_relu(const float *a, float *out, size_t n);
+void tm_relu(const float *a, float *out, size_t m, size_t n);
 void tm_relu_backward(const float *a, const float *grad_out,
                       float *grad_in, size_t m, size_t n);
 
