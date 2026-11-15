@@ -175,3 +175,40 @@ void tm_subtract_backward(const float *grad_out, float *grad_a, float *grad_b, s
         }
     }
 }
+
+void tm_matmul(const float *a, const float *b, float *out, size_t m, size_t k, size_t n) {
+    for (size_t j = 0; j < m; j++) {
+        for (size_t i = 0; i < n; i++) {
+            float sum = 0.0f;
+            for (size_t l = 0; l < k; l++) {
+                sum += AT(a, j, l, k) * AT(b, l, i, n);
+            }
+            AT(out, j, i, n) = sum;
+        }
+    }
+}
+
+void tm_matmul_backward(const float *a, const float *b, const float *grad_out,
+                        float *grad_a, float *grad_b, size_t m, size_t k, size_t n) {
+    // dL/dA[j,i] = sum_l grad_out[j,l] * B[i,l]
+    for (size_t j = 0; j < m; j++) {
+        for (size_t i = 0; i < k; i++) {
+            float sum = 0.0f;
+            for (size_t l = 0; l < n; l++) {
+                sum += AT(grad_out, j, l, n) * AT(b, i, l, n);
+            }
+            AT(grad_a, j, i, k) = sum;
+        }
+    }
+
+    // dL/dB[i,l] = sum_j A[j,i] * grad_out[j,l]
+    for (size_t i = 0; i < k; i++) {
+        for (size_t l = 0; l < n; l++) {
+            float sum = 0.0f;
+            for (size_t j = 0; j < m; j++) {
+                sum += AT(a, j, i, k) * AT(grad_out, j, l, n);
+            }
+            AT(grad_b, i, l, n) = sum;
+        }
+    }
+}
