@@ -1,0 +1,1 @@
+# funcional ops like ReLU here, seperate from tensor class
