@@ -136,6 +136,40 @@ void test_matmul() {
   printf("Matrix multiplication test passed!\n");
 }
 
+static void test_scalar_multiply(void) {
+    // 2x3 matrix test
+    const float a[6] = {1.0f, -2.0f, 0.0f, 4.0f, -5.0f, 3.0f};
+    const float scalar = 2.5f;
+const float expected[6] = {2.5f, -5.0f, 0.0f, 10.0f, -12.5f, 7.5f};
+  float out[6] = {0};
+
+    tm_scalar_multiply(a, scalar, out, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-5f);
+    }
+
+    printf("tm_scalar_multiply passed\n");
+}
+
+
+static void test_scalar_multiply_backward(void) {
+    // Incoming gradients test
+    const float grad_out[6] = {1.0f, -2.0f, 0.5f, 3.0f, -0.75f, 4.0f};
+    const float scalar = 3.0f;
+
+    const float expected_grad_a[6] = {3.0f, -6.0f, 1.5f, 9.0f, -2.25f, 12.0f};
+    float grad_a[6] = {0};
+
+    tm_scalar_multiply_backward(grad_out, scalar, grad_a, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_a[i] - expected_grad_a[i]) < 1e-5f);
+    }
+
+    printf("tm_scalar_multiply_backward passed\n");
+}
+
 int main() {
     printf("Hello TensorMIST\n");
     
@@ -155,4 +189,7 @@ int main() {
     test_subtract();
     test_subtract_backward();
     test_matmul();
+
+    test_scalar_multiply();
+    test_scalar_multiply_backward();
 }

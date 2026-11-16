@@ -212,3 +212,17 @@ void tm_matmul_backward(const float *a, const float *b, const float *grad_out,
         }
     }
 }
+
+void tm_scalar_multiply(const float *a, float scalar,
+                         float *out, size_t m, size_t n) {
+    for (size_t i = 0; i < m * n; i++) {
+        out[i] = a[i] * scalar;
+    }
+}
+
+void tm_scalar_multiply_backward(const float *grad_out, float scalar,
+                                 float *grad_a, size_t m, size_t n) {
+    for (size_t i = 0; i < m * n; i++) {
+        grad_a[i] = grad_out[i] * scalar;
+    }
+}
