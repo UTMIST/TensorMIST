@@ -140,8 +140,8 @@ static void test_scalar_multiply(void) {
     // 2x3 matrix test
     const float a[6] = {1.0f, -2.0f, 0.0f, 4.0f, -5.0f, 3.0f};
     const float scalar = 2.5f;
-const float expected[6] = {2.5f, -5.0f, 0.0f, 10.0f, -12.5f, 7.5f};
-  float out[6] = {0};
+    const float expected[6] = {2.5f, -5.0f, 0.0f, 10.0f, -12.5f, 7.5f};
+    float out[6] = {0};
 
     tm_scalar_multiply(a, scalar, out, 2, 3);
 
