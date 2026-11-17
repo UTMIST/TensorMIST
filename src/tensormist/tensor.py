@@ -44,7 +44,8 @@ class Tensor:
         Notes:
             Shape validation is performed by the shape decorator. The method
             body is responsible for validating <data>, its length, and its
-            float32 storage requirements.
+            float32 storage requirements. If array.array is used in the
+            initialisation, its elements will be copied.
         """
         # TODO
         raise NotImplementedError
@@ -241,7 +242,7 @@ class Tensor:
 
         Outputs:
             A floating-point value when <key> identifies one element, or a
-            Tensor when <key> identifies multiple elements.
+            view of the Tensor when <key> identifies multiple elements.
 
         Raises:
             IndexError: If <key> is outside the tensor bounds.
