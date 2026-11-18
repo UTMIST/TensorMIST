@@ -22,33 +22,34 @@ class Tensor:
     @validates_shape
     def __init__(self, data: Iterable[float] | array.array, shape: tuple[int, ...]):
         """
-        Initializes the tensor with shape <shape> and <data> preloaded.
-
-        Inputs:
-            data: An iterable of floating-point values, or an
-                `array.array('f')` with `itemsize == 4`, used to initialize the
-                tensor.
-            shape: A tuple of non-negative integer dimensions describing the
-                tensor shape.
-
-        Outputs:
-            None. Initializes this Tensor instance in place.
-
-        Raises:
-            TypeError: If <data> or <shape> has an unsupported type.
-            ValueError: If <shape> contains invalid dimensions or the number
-                of values in <data> does not match the shape.
-            RuntimeError: If <data> is an array with a type code other than
-                `'f'` or an item size other than 4 bytes.
-
-        Notes:
-            Shape validation is performed by the shape decorator. The method
-            body is responsible for validating <data>, its length, and its
-            float32 storage requirements. If array.array is used in the
-            initialisation, its elements will be copied.
+        Initializes the tensor with float32 data and the specified shape.
         """
-        # TODO
-        raise NotImplementedError
+        from math import prod
+
+        if isinstance(data, (str, bytes, bytearray)) or not isinstance(data, Iterable):
+            raise TypeError("Data must be an iterable of numbers.")
+
+        if isinstance(data, array.array):
+            if data.typecode != 'f' or data.itemsize != 4:
+                raise RuntimeError("Array must use 4-byte float32 storage.")
+
+        try:
+            self._data = array.array('f', data)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise TypeError("Data must contain valid numeric values.") from exc
+
+        if self._data.itemsize != 4:
+            raise RuntimeError("Float32 must occupy 4 bytes.")
+
+        expected_numel = prod(shape)
+
+        if len(self._data) != expected_numel:
+            raise ValueError(
+                f"Expected {expected_numel} elements, "
+                f"but received {len(self._data)}."
+            )
+
+        self._shape = shape
 
     # ==========================================
     # Special Initializations
@@ -195,7 +196,7 @@ class Tensor:
         Outputs:
             An integer equal to the number of dimensions in the tensor.
         """
-        # TODO
+        return len(self._shape)
         raise NotImplementedError
 
     @property
