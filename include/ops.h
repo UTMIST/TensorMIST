@@ -6,6 +6,10 @@
 // macro for accessing contiguous row-major matrix: 
 #define AT(data, row, col, cols) ((data)[(row) * (cols) + (col)])
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // a[m, k] b[k, n] out[m, n]
 void tm_matmul(const float *a, const float *b, float *out, size_t m, size_t k, size_t n);
 void tm_matmul_backward(const float *a, const float *b, const float *grad_out,
@@ -49,7 +53,7 @@ void tm_bias_add_backward(const float *grad_out, float *grad_a, float *grad_bias
                           size_t m, size_t n);
 
 // ReLU
-void tm_relu(const float *a, float *out, size_t n);
+void tm_relu(const float *a, float *out, size_t m, size_t n);
 void tm_relu_backward(const float *a, const float *grad_out,
                       float *grad_in, size_t m, size_t n);
 
@@ -65,5 +69,9 @@ void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_in
 void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n);
 void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out, float *grad_logits, 
     size_t m, size_t n);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

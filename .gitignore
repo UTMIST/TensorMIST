@@ -1,3 +1,11 @@
 ops_test.exe
 ops_test
 *.o
+__pycache__/
+.DS_Store
+.venv/
+build/
+dist/
+*.egg-info/
+*.pyd
+*.so
