@@ -1,3 +1,4 @@
+
 """
 An implementation of a tensor object and its supported operations.
 """
@@ -72,8 +73,12 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        # TODO
-        raise NotImplementedError
+        from math import prod
+
+        num_elements = prod(shape)
+        data = array.array('f', [1.0]) * num_elements
+
+        return cls(data, shape)
 
     @classmethod
     @validates_shape
@@ -92,8 +97,12 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        # TODO
-        raise NotImplementedError
+        from math import prod
+
+        num_elements = prod(shape)
+        data = array.array('f', [0.0]) * num_elements
+
+        return cls(data, shape)
 
     # ==========================================
     # Arithmetic Operations
@@ -180,8 +189,7 @@ class Tensor:
             A tuple of integers containing the size of the tensor in each
             dimension.
         """
-        # TODO
-        raise NotImplementedError
+        return self._shape
 
     @property
     def ndim(self) -> int:
@@ -197,7 +205,6 @@ class Tensor:
             An integer equal to the number of dimensions in the tensor.
         """
         return len(self._shape)
-        raise NotImplementedError
 
     @property
     def numel(self) -> int:
@@ -213,8 +220,7 @@ class Tensor:
         Outputs:
             An integer equal to the total number of elements in the tensor.
         """
-        # TODO
-        raise NotImplementedError
+        return len(self._data)
 
     # ==========================================
     # Access and Inspection
