@@ -62,7 +62,7 @@ void tm_softmax(const float *input, float *out, size_t m, size_t n);
 void tm_softmax_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n);
 
 // Sigmoid
-void tm_sigmoid(const float *input, float *out,size_t m, size_t n);
+void tm_sigmoid(const float *input, float *out, size_t m, size_t n);
 void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n);
 
 // Cross entropy
