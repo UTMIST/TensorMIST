@@ -1,4 +1,3 @@
-
 """
 An implementation of a tensor object and its supported operations.
 """
@@ -7,6 +6,7 @@ from __future__ import annotations
 
 import array
 from collections.abc import Iterable
+from math import prod
 
 from tensormist.validation import check_add_shapes, check_matmul_shapes, validates_shape
 
@@ -23,10 +23,34 @@ class Tensor:
     @validates_shape
     def __init__(self, data: Iterable[float] | array.array, shape: tuple[int, ...]):
         """
-        Initializes the tensor with float32 data and the specified shape.
-        """
-        from math import prod
+        Initializes the tensor with shape <shape> and <data> preloaded.
 
+        Inputs:
+            data: An iterable of floating-point values, or an
+                `array.array('f')` with `itemsize == 4`, used to initialize
+                the tensor.
+            shape: A tuple of non-negative integer dimensions describing the
+                tensor shape.
+
+        Outputs:
+            None. Initializes this Tensor instance in place.
+
+        Raises:
+            TypeError: If <data> or <shape> has an unsupported type.
+            ValueError: If <shape> contains invalid dimensions or the number
+                of values in <data> does not match the shape.
+            RuntimeError: If <data> is an array with a type code other than
+                `'f'` or an item size other than 4 bytes.
+
+        Notes:
+            Shape validation is performed by the shape decorator. The method
+            body is responsible for validating <data>, its length, and its
+            float32 storage requirements. If array.array is used in the
+            initialisation, its elements will be copied.
+        """
+
+        # Data: Require a numeric iterable and copy its values into private
+        # contiguous, row-major float32 storage.
         if isinstance(data, (str, bytes, bytearray)) or not isinstance(data, Iterable):
             raise TypeError("Data must be an iterable of numbers.")
 
@@ -39,6 +63,8 @@ class Tensor:
         except (TypeError, ValueError, OverflowError) as exc:
             raise TypeError("Data must contain valid numeric values.") from exc
 
+        # Validation: Check the float32 element size and ensure the number
+        # of stored elements matches the product of the shape dimensions.
         if self._data.itemsize != 4:
             raise RuntimeError("Float32 must occupy 4 bytes.")
 
@@ -50,6 +76,8 @@ class Tensor:
                 f"but received {len(self._data)}."
             )
 
+        # Shape: Store the tensor dimensions as metadata.
+        # General dimension validation is handled by @validates_shape.
         self._shape = shape
 
     # ==========================================
@@ -73,12 +101,7 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        from math import prod
-
-        num_elements = prod(shape)
-        data = array.array('f', [1.0]) * num_elements
-
-        return cls(data, shape)
+        return cls._from_array(array.array('f', [1.0]) * prod(shape), shape)
 
     @classmethod
     @validates_shape
@@ -97,12 +120,51 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        from math import prod
+        return cls._from_array(array.array('f', [0.0]) * prod(shape), shape)
 
-        num_elements = prod(shape)
-        data = array.array('f', [0.0]) * num_elements
+    @classmethod
+    @validates_shape
+    def _from_array(cls, data: array.array, shape: tuple[int, ...]) -> Tensor:
+        """
+        Creates a tensor that takes ownership of <data> without copying it.
 
-        return cls(data, shape)
+        Inputs:
+            data: An `array.array('f')` with `itemsize == 4` holding exactly
+                prod(<shape>) values in row-major order.
+            shape: A tuple of non-negative integer dimensions describing the
+                tensor shape.
+
+        Outputs:
+            A Tensor with shape <shape> whose storage is <data> itself.
+
+        Raises:
+            TypeError: If <data> is not an array.array.
+            ValueError: If <shape> contains invalid dimensions or the length
+                of <data> does not match the shape.
+            RuntimeError: If <data> does not use 4-byte float32 storage.
+
+        Notes:
+            Internal fast path for ones(), zeros(), and operation outputs.
+            The caller must not modify or reuse <data> after this call.
+        """
+        if not isinstance(data, array.array):
+            raise TypeError("Data must be an array.array.")
+
+        if data.typecode != 'f' or data.itemsize != 4:
+            raise RuntimeError("Array must use 4-byte float32 storage.")
+
+        expected_numel = prod(shape)
+
+        if len(data) != expected_numel:
+            raise ValueError(
+                f"Expected {expected_numel} elements, "
+                f"but received {len(data)}."
+            )
+
+        tensor = cls.__new__(cls)
+        tensor._data = data
+        tensor._shape = shape
+        return tensor
 
     # ==========================================
     # Arithmetic Operations
@@ -127,7 +189,6 @@ class Tensor:
             ValueError: If this tensor and <x> do not have compatible
                 shapes.
         """
-
         # TODO
         raise NotImplementedError
 
@@ -145,7 +206,6 @@ class Tensor:
         Raises:
             TypeError: If <c> is not a real number.
         """
-
         # TODO
         raise NotImplementedError
 
@@ -253,7 +313,7 @@ class Tensor:
 
         Raises:
             IndexError: If <key> is outside the tensor bounds.
-            TypeError: If <key> is not a supported index or slice.
+            TypeError: If <key> or <value> has an unsupported type.
         """
         # TODO
         raise NotImplementedError
