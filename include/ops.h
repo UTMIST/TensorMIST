@@ -67,8 +67,8 @@ void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_in
 
 // Cross entropy
 void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n);
-void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out, float *grad_logits, 
-    size_t m, size_t n);
+void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out,
+                               float *grad_logits, size_t m, size_t n);
 
 #ifdef __cplusplus
 }
