@@ -246,3 +246,43 @@ void tm_tanh_backward(const float *out, const float *grad_out, float *grad_input
         }
     }
 }
+
+void tm_binary_cross_entropy(const float *pred, const float *target, float *out,
+                             size_t m, size_t n) {
+    double sum = 0.0; // double so the mean stays accurate over many elements
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float p = AT(pred, i, j, n);
+            float y = AT(target, i, j, n);
+            float log_p = logf(p);
+            float log_1mp = log1pf(-p);
+            // Clamp both logs at -100 like pytorch, so a pred of exactly 0 or 1 stays finite.
+            if (log_p < -100.0f) {
+                log_p = -100.0f;
+            }
+            if (log_1mp < -100.0f) {
+                log_1mp = -100.0f;
+            }
+            sum += -(y * log_p + (1.0f - y) * log_1mp);
+        }
+    }
+    out[0] = (float)(sum / (double)(m * n));
+}
+
+void tm_binary_cross_entropy_backward(const float *pred, const float *target, const float *grad_out,
+                                      float *grad_pred, size_t m, size_t n) {
+    // dL/dp = (p - y) / (p * (1 - p)), and taking the mean divides each one by m * n.
+    // The denominator is clamped at 1e-12 like pytorch, so a pred of 0 or 1 never divides by 0.
+    float scale = grad_out[0] / (float)(m * n);
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float p = AT(pred, i, j, n);
+            float y = AT(target, i, j, n);
+            float denom = p * (1.0f - p);
+            if (denom < 1e-12f) {
+                denom = 1e-12f;
+            }
+            AT(grad_pred, i, j, n) = scale * (p - y) / denom;
+        }
+    }
+}

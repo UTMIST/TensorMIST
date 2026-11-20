@@ -199,6 +199,44 @@ static void test_tanh_backward(void) {
     printf("tm_tanh_backward passed\n");
 }
 
+static void test_binary_cross_entropy(void) {
+    // pred 0 and 1 hit the -100 clamp, so their terms are 100 and 75
+    // (0.75 of the clamped log(1 - p) with the 0.25 target). The rest are
+    // -log(0.25) twice, -log(0.5) and the soft 0.6 target at pred 0.8.
+    const float pred[6] = {0.0f, 1.0f, 0.25f, 0.75f, 0.5f, 0.8f};
+    const float target[6] = {1.0f, 0.25f, 1.0f, 0.0f, 1.0f, 0.6f};
+    const float expected =
+        (175.0f + 2 * 1.38629436f + 0.693147181f + 0.777661278f) / 6;
+    float out[1] = {7}; // not 0, so the loss has to overwrite it
+
+    tm_binary_cross_entropy(pred, target, out, 2, 3);
+    assert(fabsf(out[0] - expected) < 1e-4f);
+    printf("tm_binary_cross_entropy passed\n");
+}
+
+static void test_binary_cross_entropy_backward(void) {
+    // grad_out is 2.5 rather than 1, so a backward that ignores it gets caught.
+    const float pred[6] = {0.0f, 1.0f, 0.25f, 0.75f, 0.5f, 0.8f};
+    const float target[6] = {0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.6f};
+    const float grad_out[1] = {2.5f};
+    // 2.5 * (p - y) / (p * (1 - p)) / 6, and 0 (not nan) where p = y = 0 or 1.
+    const float expected[6] = {0.0f, 0.0f, -1.66666667f,
+                               1.66666667f, -0.833333333f, 0.520833326f};
+    float grad_pred[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_binary_cross_entropy_backward(pred, target, grad_out, grad_pred, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_pred[i] - expected[i]) < 1e-5f);
+    }
+
+    // With pred 0 and target 1 the denominator is the 1e-12 floor: -2.5e12.
+    const float zero[1] = {0.0f};
+    const float one[1] = {1.0f};
+    tm_binary_cross_entropy_backward(zero, one, grad_out, grad_pred, 1, 1);
+    assert(fabsf(grad_pred[0] / -2.5e12f - 1.0f) < 1e-6f);
+    printf("tm_binary_cross_entropy_backward passed\n");
+}
+
 int main() {
     printf("Hello TensorMIST\n");
     
@@ -224,4 +262,6 @@ int main() {
 
     test_tanh();
     test_tanh_backward();
+    test_binary_cross_entropy();
+    test_binary_cross_entropy_backward();
 }
