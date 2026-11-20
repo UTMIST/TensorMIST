@@ -1,4 +1,5 @@
 #include "ops.h"
+#include <math.h>
 
 void tm_relu(const float *a, float *out, size_t m, size_t n){
     float x;
@@ -224,5 +225,24 @@ void tm_scalar_multiply_backward(const float *grad_out, float scalar,
                                  float *grad_a, size_t m, size_t n) {
     for (size_t i = 0; i < m * n; i++) {
         grad_a[i] = grad_out[i] * scalar;
+    }
+}
+
+void tm_tanh(const float *input, float *out, size_t m, size_t n) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            AT(out, i, j, n) = tanhf(AT(input, i, j, n));
+        }
+    }
+}
+
+void tm_tanh_backward(const float *out, const float *grad_out, float *grad_input,
+                      size_t m, size_t n) {
+    // d tanh(x)/dx = 1 - tanh(x)^2, so the forward output is all this needs.
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float y = AT(out, i, j, n);
+            AT(grad_input, i, j, n) = AT(grad_out, i, j, n) * (1.0f - y * y);
+        }
     }
 }

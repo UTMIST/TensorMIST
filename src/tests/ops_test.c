@@ -170,6 +170,35 @@ static void test_scalar_multiply_backward(void) {
     printf("tm_scalar_multiply_backward passed\n");
 }
 
+static void test_tanh(void) {
+    // tanh worked out in double, rounded to float; tanh(100) is exactly 1.0f.
+    const float input[6] = {-2.0f, -0.5f, 0.25f, 0.75f, 1.0f, 100.0f};
+    const float expected[6] = {-0.964027580f, -0.462117157f, 0.244918662f,
+                               0.635148952f, 0.761594156f, 1.0f};
+    float out[6] = {7, 7, 7, 7, 7, 7}; // not 0, so out has to be overwritten
+
+    tm_tanh(input, out, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-6f);
+    }
+    printf("tm_tanh passed\n");
+}
+
+static void test_tanh_backward(void) {
+    // Halves, quarters and eighths keep 1 - out^2 exact in float, so == works.
+    const float out[6] = {0.5f, -0.25f, 0.75f, -0.5f, 0.125f, -0.875f};
+    const float grad_out[6] = {1.0f, -2.0f, 0.5f, 3.0f, -0.75f, 4.0f};
+    const float expected[6] = {0.75f, -1.875f, 0.21875f,
+                               2.25f, -0.73828125f, 0.9375f};
+    float grad_input[6] = {7, 7, 7, 7, 7, 7}; // overwritten too, not added to
+
+    tm_tanh_backward(out, grad_out, grad_input, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(grad_input[i] == expected[i]);
+    }
+    printf("tm_tanh_backward passed\n");
+}
+
 int main() {
     printf("Hello TensorMIST\n");
     
@@ -192,4 +221,7 @@ int main() {
 
     test_scalar_multiply();
     test_scalar_multiply_backward();
+
+    test_tanh();
+    test_tanh_backward();
 }
