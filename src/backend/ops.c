@@ -286,3 +286,25 @@ void tm_binary_cross_entropy_backward(const float *pred, const float *target, co
         }
     }
 }
+
+void tm_mse_loss(const float *pred, const float *target, float *out, size_t m, size_t n) {
+    double sum = 0.0;
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float diff = AT(pred, i, j, n) - AT(target, i, j, n);
+            sum += diff * diff;
+        }
+    }
+    out[0] = (float)(sum / (double)(m * n));
+}
+
+void tm_mse_loss_backward(const float *pred, const float *target, const float *grad_out,
+                          float *grad_pred, size_t m, size_t n) {
+    // No 1/2 in front of the square here (same as pytorch), so its derivative keeps the 2.
+    float scale = 2.0f * grad_out[0] / (float)(m * n);
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            AT(grad_pred, i, j, n) = scale * (AT(pred, i, j, n) - AT(target, i, j, n));
+        }
+    }
+}
