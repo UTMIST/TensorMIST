@@ -331,6 +331,100 @@ static void test_cross_entropy_backward(void) {
     printf("tm_cross_entropy_backward passed\n");
 }
 
+static void test_tanh(void) {
+    // tanh worked out in double, rounded to float; tanh(100) is exactly 1.0f.
+    const float input[6] = {-2.0f, -0.5f, 0.25f, 0.75f, 1.0f, 100.0f};
+    const float expected[6] = {-0.964027580f, -0.462117157f, 0.244918662f,
+                               0.635148952f, 0.761594156f, 1.0f};
+    float out[6] = {7, 7, 7, 7, 7, 7}; // not 0, so out has to be overwritten
+
+    tm_tanh(input, out, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-6f);
+    }
+    printf("tm_tanh passed\n");
+}
+
+static void test_tanh_backward(void) {
+    // Halves, quarters and eighths keep 1 - out^2 exact in float, so == works.
+    const float out[6] = {0.5f, -0.25f, 0.75f, -0.5f, 0.125f, -0.875f};
+    const float grad_out[6] = {1.0f, -2.0f, 0.5f, 3.0f, -0.75f, 4.0f};
+    const float expected[6] = {0.75f, -1.875f, 0.21875f,
+                               2.25f, -0.73828125f, 0.9375f};
+    float grad_input[6] = {7, 7, 7, 7, 7, 7}; // overwritten too, not added to
+
+    tm_tanh_backward(out, grad_out, grad_input, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(grad_input[i] == expected[i]);
+    }
+    printf("tm_tanh_backward passed\n");
+}
+
+static void test_binary_cross_entropy(void) {
+    // pred 0 and 1 hit the -100 clamp, so their terms are 100 and 75
+    // (0.75 of the clamped log(1 - p) with the 0.25 target). The rest are
+    // -log(0.25) twice, -log(0.5) and the soft 0.6 target at pred 0.8.
+    const float pred[6] = {0.0f, 1.0f, 0.25f, 0.75f, 0.5f, 0.8f};
+    const float target[6] = {1.0f, 0.25f, 1.0f, 0.0f, 1.0f, 0.6f};
+    const float expected =
+        (175.0f + 2 * 1.38629436f + 0.693147181f + 0.777661278f) / 6;
+    float out[1] = {7}; // not 0, so the loss has to overwrite it
+
+    tm_binary_cross_entropy(pred, target, out, 2, 3);
+    assert(fabsf(out[0] - expected) < 1e-4f);
+    printf("tm_binary_cross_entropy passed\n");
+}
+
+static void test_binary_cross_entropy_backward(void) {
+    // grad_out is 2.5 rather than 1, so a backward that ignores it gets caught.
+    const float pred[6] = {0.0f, 1.0f, 0.25f, 0.75f, 0.5f, 0.8f};
+    const float target[6] = {0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.6f};
+    const float grad_out[1] = {2.5f};
+    // 2.5 * (p - y) / (p * (1 - p)) / 6, and 0 (not nan) where p = y = 0 or 1.
+    const float expected[6] = {0.0f, 0.0f, -1.66666667f,
+                               1.66666667f, -0.833333333f, 0.520833326f};
+    float grad_pred[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_binary_cross_entropy_backward(pred, target, grad_out, grad_pred, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_pred[i] - expected[i]) < 1e-5f);
+    }
+
+    // With pred 0 and target 1 the denominator is the 1e-12 floor: -2.5e12.
+    const float zero[1] = {0.0f};
+    const float one[1] = {1.0f};
+    tm_binary_cross_entropy_backward(zero, one, grad_out, grad_pred, 1, 1);
+    assert(fabsf(grad_pred[0] / -2.5e12f - 1.0f) < 1e-6f);
+    printf("tm_binary_cross_entropy_backward passed\n");
+}
+
+static void test_mse_loss(void) {
+    // Squared differences 0.25, 1, 9, 0.25, 0.25 and 4 add up to 14.75.
+    const float pred[6] = {1.5f, -0.5f, 2.0f, 0.25f, -1.0f, 3.0f};
+    const float target[6] = {1.0f, 0.5f, -1.0f, 0.75f, -1.5f, 1.0f};
+    float out[1] = {7};
+
+    tm_mse_loss(pred, target, out, 2, 3);
+    assert(fabsf(out[0] - 14.75f / 6) < 1e-6f);
+    printf("tm_mse_loss passed\n");
+}
+
+static void test_mse_loss_backward(void) {
+    // 2 * (p - y) * 2.5 / 6 for each element.
+    const float pred[6] = {1.5f, -0.5f, 2.0f, 0.25f, -1.0f, 3.0f};
+    const float target[6] = {1.0f, 0.5f, -1.0f, 0.75f, -1.5f, 1.0f};
+    const float grad_out[1] = {2.5f};
+    const float expected[6] = {0.416666667f, -0.833333333f, 2.5f,
+                               -0.416666667f, 0.416666667f, 1.66666667f};
+    float grad_pred[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_mse_loss_backward(pred, target, grad_out, grad_pred, 2, 3);
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_pred[i] - expected[i]) < 1e-6f);
+    }
+    printf("tm_mse_loss_backward passed\n");
+}
+
 int main() {
     printf("Hello TensorMIST\n");
     
@@ -362,4 +456,11 @@ int main() {
 
     test_cross_entropy();
     test_cross_entropy_backward();
+
+    test_tanh();
+    test_tanh_backward();
+    test_binary_cross_entropy();
+    test_binary_cross_entropy_backward();
+    test_mse_loss();
+    test_mse_loss_backward();
 }
