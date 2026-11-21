@@ -58,23 +58,33 @@ void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_in
 }
 
 void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n) {
+    float total_loss = 0.0f;
     float total;
     float max_val;
-    for (int i = 0; i < m; i++) {
+
+    if (m == 0) {
+        out[0] = NAN;
+        return;
+    }
+
+    for (size_t i = 0; i < m; i++) {
         total = 0;
         max_val = -INFINITY;
-        for (int j = 0; j < n; j++) {
+
+        for (size_t j = 0; j < n; j++) {
             if (AT(logits, i, j, n) > max_val) {
                 max_val = AT(logits, i, j, n);
             }
         }
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             total += expf(AT(logits, i, j, n) - max_val);
         }
 
-        out[i] = logf(total) + max_val - AT(logits, i, target[i], n);
+        total_loss += logf(total) + max_val - AT(logits, i, target[i], n);
     }
+
+    out[0] = total_loss / m;
 }
 
 void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out, 
@@ -82,26 +92,30 @@ void tm_cross_entropy_backward(const float *logits, const size_t *target, const 
     float max_val;
     float total;
 
-    for (int i = 0; i < m; i++) {
+    if (m == 0) {
+        return;
+    }
+
+    for (size_t i = 0; i < m; i++) {
         max_val = -INFINITY;
         total = 0.0f;
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             if (AT(logits, i, j, n) > max_val) {
                 max_val = AT(logits, i, j, n);
             }
         }
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             total += expf(AT(logits, i, j, n) - max_val);
         }
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             float prob = expf(AT(logits, i, j, n) - max_val) / total;
 
             float grad = prob - (j == target[i] ? 1.0f : 0.0f);
 
-            AT(grad_logits, i, j, n) = grad * grad_out[i];
+            AT(grad_logits, i, j, n) = grad * grad_out[0] / m;
         }
     }
 }
