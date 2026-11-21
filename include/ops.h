@@ -58,6 +58,36 @@ void tm_relu(const float *a, float *out, size_t m, size_t n);
 void tm_relu_backward(const float *a, const float *grad_out,
                       float *grad_in, size_t m, size_t n);
 
+// Softmax
+void tm_softmax(const float *input, float *out, size_t m, size_t n);
+void tm_softmax_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n);
+
+// Sigmoid
+void tm_sigmoid(const float *input, float *out, size_t m, size_t n);
+void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n);
+
+// Cross entropy
+void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n);
+void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out,
+                               float *grad_logits, size_t m, size_t n);
+
+// Tanh, backward takes the forward output like sigmoid
+void tm_tanh(const float *input, float *out, size_t m, size_t n);
+void tm_tanh_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n);
+
+// Binary cross entropy, pred holds probabilities and target has the same shape
+// writes the mean over all m * n elements to out[0], backward reads grad_out[0]
+// logs are clamped at -100 like pytorch
+void tm_binary_cross_entropy(const float *pred, const float *target, float *out, size_t m, size_t n);
+void tm_binary_cross_entropy_backward(const float *pred, const float *target, const float *grad_out,
+                                      float *grad_pred, size_t m, size_t n);
+
+// Mean squared error, target has the same shape as pred
+// writes the mean over all m * n elements to out[0], backward reads grad_out[0]
+void tm_mse_loss(const float *pred, const float *target, float *out, size_t m, size_t n);
+void tm_mse_loss_backward(const float *pred, const float *target, const float *grad_out,
+                          float *grad_pred, size_t m, size_t n);
+
 #ifdef __cplusplus
 }
 #endif
