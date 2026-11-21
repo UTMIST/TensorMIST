@@ -219,7 +219,7 @@ static void test_sigmoid_backward(void) {
 
 static void test_softmax(void) {
     const float input[6] = {
-        1.0f, 2.0f, 3.0f,
+        1001.0f, 1002.0f, 1003.0f,
         0.0f, 0.0f, 0.0f
     };
 
@@ -299,7 +299,7 @@ static void test_cross_entropy(void) {
 
 static void test_cross_entropy_backward(void) {
     const float logits[6] = {
-        2.0f, 1.0f, 0.0f,
+        1002.0f, 1001.0f, 1000.0f,
         0.0f, 0.0f, 0.0f
     };
 
