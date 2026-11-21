@@ -170,6 +170,167 @@ static void test_scalar_multiply_backward(void) {
     printf("tm_scalar_multiply_backward passed\n");
 }
 
+static void test_sigmoid(void) {
+    const float input[6] = {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 10.0f};
+
+    const float expected[6] = {
+        0.119202923f, 0.268941421f, 0.5f,
+        0.731058579f, 0.880797078f, 0.999954602f
+    };
+
+    float out[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_sigmoid(input, out, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-6f);
+    }
+
+    printf("tm_sigmoid passed\n");
+}
+
+static void test_sigmoid_backward(void) {
+    // Using exact binary fractions for sigmoid outputs.
+    const float out[6] = {
+        0.5f, 0.25f, 0.75f,
+        0.125f, 0.875f, 0.625f
+    };
+
+    const float grad_out[6] = {
+        1.0f, 2.0f, -1.0f,
+        4.0f, -2.0f, 0.5f
+    };
+
+    const float expected[6] = {
+        0.25f, 0.375f, -0.1875f,
+        0.4375f, -0.21875f, 0.1171875f
+    };
+
+    float grad_input[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_sigmoid_backward(out, grad_out, grad_input, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(grad_input[i] == expected[i]);
+    }
+
+    printf("tm_sigmoid_backward passed\n");
+}
+
+static void test_softmax(void) {
+    const float input[6] = {
+        1.0f, 2.0f, 3.0f,
+        0.0f, 0.0f, 0.0f
+    };
+
+    const float expected[6] = {
+        0.090030573f, 0.244728472f, 0.665240955f,
+        0.333333333f, 0.333333333f, 0.333333333f
+    };
+
+    float out[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_softmax(input, out, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-6f);
+    }
+
+    // Each row's probabilities should sum to 1.
+    for (size_t i = 0; i < 2; i++) {
+        float sum = 0.0f;
+
+        for (size_t j = 0; j < 3; j++) {
+            sum += out[i * 3 + j];
+        }
+
+        assert(fabsf(sum - 1.0f) < 1e-6f);
+    }
+
+    printf("tm_softmax passed\n");
+}
+
+static void test_softmax_backward(void) {
+    const float out[6] = {
+        0.5f, 0.25f, 0.25f,
+        0.2f, 0.3f, 0.5f
+    };
+
+    const float grad_out[6] = {
+        1.0f, 2.0f, -1.0f,
+        1.0f, -2.0f, 3.0f
+    };
+
+    const float expected[6] = {
+        0.125f, 0.3125f, -0.4375f,
+        -0.02f, -0.93f, 0.95f
+    };
+
+    float grad_input[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_softmax_backward(out, grad_out, grad_input, 2, 3);
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_input[i] - expected[i]) < 1e-6f);
+    }
+
+    printf("tm_softmax_backward passed\n");
+}
+
+static void test_cross_entropy(void) {
+    const float logits[6] = {
+        2.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f
+    };
+
+    const size_t target[2] = {1, 2};
+
+    const float expected[2] = {
+        1.407605964f,
+        1.098612289f
+    };
+
+    float out[2] = {7, 7};
+
+    tm_cross_entropy(logits, target, out, 2, 3);
+
+    for (size_t i = 0; i < 2; i++) {
+        assert(fabsf(out[i] - expected[i]) < 1e-5f);
+    }
+
+    printf("tm_cross_entropy passed\n");
+}
+
+static void test_cross_entropy_backward(void) {
+    const float logits[6] = {
+        2.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f
+    };
+
+    const size_t target[2] = {1, 2};
+
+    const float grad_out[2] = {
+        1.0f, 0.5f
+    };
+
+    const float expected[6] = {
+        0.665240955f, -0.755271528f, 0.090030573f,
+        0.166666667f, 0.166666667f, -0.333333333f
+    };
+
+    float grad_logits[6] = {7, 7, 7, 7, 7, 7};
+
+    tm_cross_entropy_backward(
+        logits, target, grad_out, grad_logits, 2, 3
+    );
+
+    for (size_t i = 0; i < 6; i++) {
+        assert(fabsf(grad_logits[i] - expected[i]) < 1e-6f);
+    }
+
+    printf("tm_cross_entropy_backward passed\n");
+}
+
 int main() {
     printf("Hello TensorMIST\n");
     
@@ -192,4 +353,13 @@ int main() {
 
     test_scalar_multiply();
     test_scalar_multiply_backward();
+
+    test_sigmoid();
+    test_sigmoid_backward();
+
+    test_softmax();
+    test_softmax_backward();
+
+    test_cross_entropy();
+    test_cross_entropy_backward();
 }
