@@ -285,21 +285,17 @@ static void test_cross_entropy(void) {
 
     const size_t target[2] = {1, 2};
 
-    const float expected[2] = {
-        1.407605964f,
-        1.098612289f
-    };
+    const float expected = 1.253109127f;
 
-    float out[2] = {7, 7};
+    float out[1] = {7};
 
     tm_cross_entropy(logits, target, out, 2, 3);
 
-    for (size_t i = 0; i < 2; i++) {
-        assert(fabsf(out[i] - expected[i]) < 1e-5f);
-    }
+    assert(fabsf(out[0] - expected) < 1e-5f);
 
     printf("tm_cross_entropy passed\n");
 }
+
 
 static void test_cross_entropy_backward(void) {
     const float logits[6] = {
@@ -309,12 +305,10 @@ static void test_cross_entropy_backward(void) {
 
     const size_t target[2] = {1, 2};
 
-    const float grad_out[2] = {
-        1.0f, 0.5f
-    };
+    const float grad_out[1] = {1.0f};
 
     const float expected[6] = {
-        0.665240955f, -0.755271528f, 0.090030573f,
+        0.332620478f, -0.377635764f, 0.045015287f,
         0.166666667f, 0.166666667f, -0.333333333f
     };
 
