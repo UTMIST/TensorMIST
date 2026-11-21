@@ -1,9 +1,3 @@
-"""
-Gradient checks for backward kernels using finite gradient difference checking.
-
-    forward(x) -> Tensor
-    backward(x, grad_out) -> Tensor with the same shape as x
-"""
 
 import random
 
