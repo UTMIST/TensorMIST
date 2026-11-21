@@ -1,5 +1,109 @@
 #include "ops.h"
 
+void tm_softmax(const float *input, float *out, size_t m, size_t n) {
+    float total;
+    float max_val;
+    for (int i = 0; i < m; i++) {
+        total = 0;
+        max_val = -INFINITY;
+
+        for (int j = 0; j < n; j++) {
+            if (AT(input, i, j, n) > max_val) {
+                max_val = AT(input, i, j, n);
+            }
+        }
+
+        for (int j = 0; j < n; j++) {
+            total += expf(AT(input, i, j, n) - max_val);
+        }
+
+        for (int j = 0; j < n; j++) {
+            AT(out, i, j, n) = expf(AT(input, i, j, n) - max_val) / total; 
+        }
+    }
+}
+
+void tm_softmax_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
+    float total;
+    for (int i = 0; i < m; i++){
+        total = 0;
+        for (int j = 0; j < n; j++){
+            total += AT(grad_out, i, j, n) * AT(out, i, j, n);
+        }
+
+        for (int j = 0; j < n; j++){
+            AT(grad_input, i, j, n) = AT(out, i, j, n) * (AT(grad_out, i, j, n) - total);
+        }
+    }
+
+}
+
+void tm_sigmoid(const float *input, float *out,size_t m, size_t n){
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            AT(out, i, j, n) = 1 / (expf(-AT(input, i, j, n)) + 1);
+        }
+    }
+}
+
+void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
+    float x;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            x = AT(out, i, j, n);
+            AT(grad_input, i, j, n) = AT(grad_out, i, j, n) * (x) * (1 - x);
+        }
+    }
+}
+
+void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n) {
+    float total;
+    float max_val; 
+    for (int i = 0; i < m; i++) {
+        total = 0;
+        max_val = -INFINITY;
+        for (int j = 0; j < n; j++) {
+            if (AT(logits, i, j, n) > max_val) {
+                max_val = AT(logits, i, j, n);
+            }
+        }
+
+        for (int j = 0; j < n; j++) {
+            total += expf(AT(logits, i, j, n) - max_val);
+        }
+
+        out[i] = logf(total) + max_val - AT(logits, i, target[i], n);
+    }
+}
+
+void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out, float *grad_logits, size_t m, size_t n) {
+    float max_val;
+    float total;
+
+    for (int i = 0; i < m; i++) {
+        max_val = -INFINITY;
+        total = 0.0f;
+
+        for (int j = 0; j < n; j++) {
+            if (AT(logits, i, j, n) > max_val) {
+                max_val = AT(logits, i, j, n);
+            }
+        }
+
+        for (int j = 0; j < n; j++) {
+            total += expf(AT(logits, i, j, n) - max_val);
+        }
+
+        for (int j = 0; j < n; j++) {
+            float prob = expf(AT(logits, i, j, n) - max_val) / total;
+
+            float grad = prob - (j == target[i] ? 1.0f : 0.0f);
+
+            AT(grad_logits, i, j, n) = grad * grad_out[i];
+        }
+    }
+}
+
 void tm_relu(const float *a, float *out, size_t m, size_t n){
     float x;
     for (int i = 0; i < m; i++){
