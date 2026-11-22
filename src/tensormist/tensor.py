@@ -10,6 +10,8 @@ from math import prod
 
 from tensormist.validation import check_add_shapes, check_matmul_shapes, validates_shape
 
+from tensormist import _C
+
 
 class Tensor:
     """
@@ -189,8 +191,22 @@ class Tensor:
             ValueError: If this tensor and <x> do not have compatible
                 shapes.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(x, Tensor):
+            raise TypeError("Second argument is not a Tensor.")
+        
+        if not (self.shape == x.shape or
+                (self.ndim == 2 and x.ndim == 1 and self.shape[1] == x.shape[0])):
+            raise ValueError("Operands do not have compatible shapes.")
+
+        out = Tensor.zeros(self.shape)
+        
+        if self.shape == x.shape:
+            _C.add(self._data, x._data, out._data, prod(shape[:-1]), self.shape[-1])
+        else:
+            _C.bias_add(self._data, x._data, out._data, self.shape[0], self.shape[1])
+                        
+        return out
+        
 
     def __mul__(self, c: float) -> Tensor:
         """
@@ -206,8 +222,16 @@ class Tensor:
         Raises:
             TypeError: If <c> is not a real number.
         """
-        # TODO
-        raise NotImplementedError
+        if not (isinstance(c, float) or isinstance(c, int)):
+            raise TypeError("First operand is not a real number.")
+        
+        out = Tensor.zeros(self.shape)
+        
+        _C.scalar_multiply(self._data, c, out._data, prod(shape[:-1]), self.shape[-1])
+
+        return out
+
+    __rmul__ = __mul__
 
     @check_matmul_shapes
     def __matmul__(self, x: Tensor) -> Tensor:
@@ -228,8 +252,18 @@ class Tensor:
             ValueError: If the dimensions of this tensor and <x> are
                 incompatible for matrix multiplication.
         """
-        # TODO
-        raise NotImplementedError
+        if not isinstance(x, Tensor):
+            raise TypeError("Second argument is not a Tensor.")
+
+        if not (self.ndim == 2 and x.ndim == 2 and self.shape[1] == x.shape[0]):
+            raise ValueError("Dimensions of Tensors are incompatible for matrix multiplication.")
+
+        out = Tensor.zeros((self.shape[0], x.shape[1]))
+        
+        _C.matmul(self._data, x._data, out._data, self.shape[0], self.shape[1], x.shape[1])
+
+        return out
+        
 
     # ==========================================
     # Metadata Properties
