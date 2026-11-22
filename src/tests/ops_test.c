@@ -12,6 +12,13 @@ static void test_tm_add() {
     int n = 3;
 
     tm_add(a, b, out, m, n);
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++)
+        {
+            assert(AT(expected, i, j, n) == AT(out, i, j, n));
+        }
+    }
+    printf("tm_add passed\n");
 }
     
 static void test_tm_bias_add()
@@ -31,6 +38,7 @@ static void test_tm_bias_add()
             assert(AT(expected, i, j, n) == AT(out, i, j, n));
         }
     }
+    printf("tm_bias_add passed\n");
 }
 
 
@@ -81,6 +89,7 @@ static void test_transpose(void) {
     for (size_t i = 0; i < 6; i++) {
         assert(out[i] == expected[i]);
     }
+    printf("Transpose sanity check passed.\n");
 }
 
 static void test_multiply(void) {
