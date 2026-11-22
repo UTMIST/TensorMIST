@@ -1,4 +1,124 @@
 #include "ops.h"
+#include <math.h>
+
+void tm_softmax(const float *input, float *out, size_t m, size_t n) {
+    float total;
+    float max_val;
+    for (int i = 0; i < m; i++) {
+        total = 0;
+        max_val = -INFINITY;
+
+        for (int j = 0; j < n; j++) {
+            if (AT(input, i, j, n) > max_val) {
+                max_val = AT(input, i, j, n);
+            }
+        }
+
+        for (int j = 0; j < n; j++) {
+            total += expf(AT(input, i, j, n) - max_val);
+        }
+
+        for (int j = 0; j < n; j++) {
+            AT(out, i, j, n) = expf(AT(input, i, j, n) - max_val) / total;
+        }
+    }
+}
+
+void tm_softmax_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
+    float total;
+    for (int i = 0; i < m; i++){
+        total = 0;
+        for (int j = 0; j < n; j++){
+            total += AT(grad_out, i, j, n) * AT(out, i, j, n);
+        }
+
+        for (int j = 0; j < n; j++){
+            AT(grad_input, i, j, n) = AT(out, i, j, n) * (AT(grad_out, i, j, n) - total);
+        }
+    }
+
+}
+
+void tm_sigmoid(const float *input, float *out, size_t m, size_t n){
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            AT(out, i, j, n) = 1 / (expf(-AT(input, i, j, n)) + 1);
+        }
+    }
+}
+
+void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
+    float x;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            x = AT(out, i, j, n);
+            AT(grad_input, i, j, n) = AT(grad_out, i, j, n) * (x) * (1 - x);
+        }
+    }
+}
+
+void tm_cross_entropy(const float *logits, const size_t *target, float *out, size_t m, size_t n) {
+    float total_loss = 0.0f;
+    float total;
+    float max_val;
+
+    if (m == 0) {
+        out[0] = NAN;
+        return;
+    }
+
+    for (size_t i = 0; i < m; i++) {
+        total = 0;
+        max_val = -INFINITY;
+
+        for (size_t j = 0; j < n; j++) {
+            if (AT(logits, i, j, n) > max_val) {
+                max_val = AT(logits, i, j, n);
+            }
+        }
+
+        for (size_t j = 0; j < n; j++) {
+            total += expf(AT(logits, i, j, n) - max_val);
+        }
+
+        total_loss += logf(total) + (max_val - AT(logits, i, target[i], n));
+    }
+
+    out[0] = total_loss / m;
+}
+
+void tm_cross_entropy_backward(const float *logits, const size_t *target, const float *grad_out, 
+                               float *grad_logits, size_t m, size_t n) {
+    float max_val;
+    float total;
+
+    if (m == 0) {
+        return;
+    }
+
+    for (size_t i = 0; i < m; i++) {
+        max_val = -INFINITY;
+        total = 0.0f;
+
+        for (size_t j = 0; j < n; j++) {
+            if (AT(logits, i, j, n) > max_val) {
+                max_val = AT(logits, i, j, n);
+            }
+        }
+
+        for (size_t j = 0; j < n; j++) {
+            total += expf(AT(logits, i, j, n) - max_val);
+        }
+
+        for (size_t j = 0; j < n; j++) {
+            float prob = expf(AT(logits, i, j, n) - max_val) / total;
+
+            float grad = prob - (j == target[i] ? 1.0f : 0.0f);
+
+            AT(grad_logits, i, j, n) = grad * grad_out[0] / m;
+        }
+    }
+}
 
 void tm_relu(const float *a, float *out, size_t m, size_t n){
     float x;
@@ -224,5 +344,100 @@ void tm_scalar_multiply_backward(const float *grad_out, float scalar,
                                  float *grad_a, size_t m, size_t n) {
     for (size_t i = 0; i < m * n; i++) {
         grad_a[i] = grad_out[i] * scalar;
+    }
+}
+
+void tm_tanh(const float *input, float *out, size_t m, size_t n) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            AT(out, i, j, n) = tanhf(AT(input, i, j, n));
+        }
+    }
+}
+
+void tm_tanh_backward(const float *out, const float *grad_out, float *grad_input,
+                      size_t m, size_t n) {
+    // d tanh(x)/dx = 1 - tanh(x)^2, so the forward output is all this needs.
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float y = AT(out, i, j, n);
+            AT(grad_input, i, j, n) = AT(grad_out, i, j, n) * (1.0f - y * y);
+        }
+    }
+}
+
+void tm_binary_cross_entropy(const float *pred, const float *target, float *out,
+                             size_t m, size_t n) {
+    if (m == 0 || n == 0) {
+        out[0] = NAN; // nothing to average, same as pytorch's mean of an empty tensor
+        return;
+    }
+    double sum = 0.0; // double so the mean stays accurate over many elements
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float p = AT(pred, i, j, n);
+            float y = AT(target, i, j, n);
+            float log_p = logf(p);
+            float log_1mp = log1pf(-p);
+            // Clamp both logs at -100 like pytorch, so a pred of exactly 0 or 1 stays finite.
+            if (log_p < -100.0f) {
+                log_p = -100.0f;
+            }
+            if (log_1mp < -100.0f) {
+                log_1mp = -100.0f;
+            }
+            sum += -(y * log_p + (1.0f - y) * log_1mp);
+        }
+    }
+    out[0] = (float)(sum / ((double)m * (double)n));
+}
+
+void tm_binary_cross_entropy_backward(const float *pred, const float *target, const float *grad_out,
+                                      float *grad_pred, size_t m, size_t n) {
+    if (m == 0 || n == 0) {
+        return; // grad_pred is empty, and m * n below would be 0
+    }
+    // dL/dp = (p - y) / (p * (1 - p)), and taking the mean divides each one by m * n.
+    // The denominator is clamped at 1e-12 like pytorch, so a pred of 0 or 1 never divides by 0.
+    float scale = grad_out[0] / (float)(m * n);
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float p = AT(pred, i, j, n);
+            float y = AT(target, i, j, n);
+            float denom = p * (1.0f - p);
+            if (denom < 1e-12f) {
+                denom = 1e-12f;
+            }
+            AT(grad_pred, i, j, n) = scale * (p - y) / denom;
+        }
+    }
+}
+
+void tm_mse_loss(const float *pred, const float *target, float *out, size_t m, size_t n) {
+    if (m == 0 || n == 0) {
+        out[0] = NAN; // nothing to average, same as pytorch's mean of an empty tensor
+        return;
+    }
+    double sum = 0.0;
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            float diff = AT(pred, i, j, n) - AT(target, i, j, n);
+            sum += diff * diff;
+        }
+    }
+    out[0] = (float)(sum / ((double)m * (double)n));
+}
+
+void tm_mse_loss_backward(const float *pred, const float *target, const float *grad_out,
+                          float *grad_pred, size_t m, size_t n) {
+    if (m == 0 || n == 0) {
+        return; // grad_pred is empty, and m * n below would be 0
+    }
+    // No 1/2 in front of the square here (same as pytorch), so its derivative keeps the 2.
+    float scale = 2.0f * grad_out[0] / (float)(m * n);
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
+            AT(grad_pred, i, j, n) = scale * (AT(pred, i, j, n) - AT(target, i, j, n));
+        }
     }
 }
