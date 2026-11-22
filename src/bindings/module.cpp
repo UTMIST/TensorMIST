@@ -20,6 +20,15 @@ struct FloatBuffer {
     float *write() const { return static_cast<float *>(info.ptr); }
 };
 
+// Class labels use size_t storage; the Python layer validates the buffer.
+struct LabelsBuffer {
+    py::buffer_info info;
+
+    explicit LabelsBuffer(py::buffer buffer) : info(buffer.request()) {}
+
+    const size_t *read() const { return static_cast<const size_t *>(info.ptr); }
+};
+
 constexpr size_t max_elements =
     static_cast<size_t>(std::numeric_limits<py::ssize_t>::max()) / sizeof(float);
 
@@ -221,5 +230,103 @@ PYBIND11_MODULE(_C, m) {
         FloatBuffer go(grad_out), ga(grad_a);
         tm_sum_cols_backward(go.read(), ga.write(), m, n);
     }, py::arg("grad_out"), py::arg("grad_a"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("softmax", [](py::buffer input, py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n, true);
+        FloatBuffer x(input), y(out);
+        tm_softmax(x.read(), y.write(), m, n);
+    }, py::arg("input"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("softmax_backward", [](py::buffer out, py::buffer grad_out,
+                                  py::buffer grad_input, size_t m, size_t n) {
+        check_native_matrix(m, n, true);
+        FloatBuffer y(out), go(grad_out), gi(grad_input);
+        tm_softmax_backward(y.read(), go.read(), gi.write(), m, n);
+    }, py::arg("out"), py::arg("grad_out"), py::arg("grad_input"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("sigmoid", [](py::buffer input, py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n, true);
+        FloatBuffer x(input), y(out);
+        tm_sigmoid(x.read(), y.write(), m, n);
+    }, py::arg("input"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("sigmoid_backward", [](py::buffer out, py::buffer grad_out,
+                                  py::buffer grad_input, size_t m, size_t n) {
+        check_native_matrix(m, n, true);
+        FloatBuffer y(out), go(grad_out), gi(grad_input);
+        tm_sigmoid_backward(y.read(), go.read(), gi.write(), m, n);
+    }, py::arg("out"), py::arg("grad_out"), py::arg("grad_input"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("cross_entropy", [](py::buffer logits, py::buffer target,
+                               py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer x(logits), y(out);
+        LabelsBuffer labels(target);
+        tm_cross_entropy(x.read(), labels.read(), y.write(), m, n);
+    }, py::arg("logits"), py::arg("target"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("cross_entropy_backward", [](py::buffer logits, py::buffer target,
+                                        py::buffer grad_out, py::buffer grad_logits,
+                                        size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer x(logits), go(grad_out), gi(grad_logits);
+        LabelsBuffer labels(target);
+        tm_cross_entropy_backward(x.read(), labels.read(), go.read(), gi.write(), m, n);
+    }, py::arg("logits"), py::arg("target"), py::arg("grad_out"), py::arg("grad_logits"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("tanh", [](py::buffer input, py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer x(input), y(out);
+        tm_tanh(x.read(), y.write(), m, n);
+    }, py::arg("input"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("tanh_backward", [](py::buffer out, py::buffer grad_out,
+                               py::buffer grad_input, size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer y(out), go(grad_out), gi(grad_input);
+        tm_tanh_backward(y.read(), go.read(), gi.write(), m, n);
+    }, py::arg("out"), py::arg("grad_out"), py::arg("grad_input"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("binary_cross_entropy", [](py::buffer pred, py::buffer target,
+                                      py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer p(pred), t(target), y(out);
+        tm_binary_cross_entropy(p.read(), t.read(), y.write(), m, n);
+    }, py::arg("pred"), py::arg("target"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("binary_cross_entropy_backward", [](py::buffer pred, py::buffer target,
+                                               py::buffer grad_out, py::buffer grad_pred,
+                                               size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer p(pred), t(target), go(grad_out), gi(grad_pred);
+        tm_binary_cross_entropy_backward(p.read(), t.read(), go.read(), gi.write(), m, n);
+    }, py::arg("pred"), py::arg("target"), py::arg("grad_out"), py::arg("grad_pred"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("mse_loss", [](py::buffer pred, py::buffer target,
+                         py::buffer out, size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer p(pred), t(target), y(out);
+        tm_mse_loss(p.read(), t.read(), y.write(), m, n);
+    }, py::arg("pred"), py::arg("target"), py::arg("out"),
+       py::arg("m").noconvert(), py::arg("n").noconvert());
+
+    m.def("mse_loss_backward", [](py::buffer pred, py::buffer target,
+                                  py::buffer grad_out, py::buffer grad_pred,
+                                  size_t m, size_t n) {
+        check_native_matrix(m, n);
+        FloatBuffer p(pred), t(target), go(grad_out), gi(grad_pred);
+        tm_mse_loss_backward(p.read(), t.read(), go.read(), gi.write(), m, n);
+    }, py::arg("pred"), py::arg("target"), py::arg("grad_out"), py::arg("grad_pred"),
        py::arg("m").noconvert(), py::arg("n").noconvert());
 }
