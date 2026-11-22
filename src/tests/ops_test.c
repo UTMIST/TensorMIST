@@ -305,11 +305,11 @@ static void test_cross_entropy_backward(void) {
 
     const size_t target[2] = {1, 2};
 
-    const float grad_out[1] = {1.0f};
+    const float grad_out[1] = {2.5f};
 
     const float expected[6] = {
-        0.332620478f, -0.377635764f, 0.045015287f,
-        0.166666667f, 0.166666667f, -0.333333333f
+        0.831551195f, -0.944089411f, 0.112538216f,
+        0.416666667f, 0.416666667f, -0.833333333f
     };
 
     float grad_logits[6] = {7, 7, 7, 7, 7, 7};

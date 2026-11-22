@@ -81,7 +81,7 @@ void tm_cross_entropy(const float *logits, const size_t *target, float *out, siz
             total += expf(AT(logits, i, j, n) - max_val);
         }
 
-        total_loss += logf(total) + max_val - AT(logits, i, target[i], n);
+        total_loss += logf(total) + (max_val - AT(logits, i, target[i], n));
     }
 
     out[0] = total_loss / m;
