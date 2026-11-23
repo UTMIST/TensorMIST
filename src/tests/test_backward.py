@@ -151,11 +151,91 @@ def sum_cols_backward(a, g):
     return (ga,)
 
 
+# sigmoid, tanh and softmax backward take the forward output, not the input.
+
+def sigmoid(a):
+    out = empty(a.shape)
+    _C.sigmoid(a, out, *a.shape)
+    return out
+
+
+def sigmoid_backward(a, g):
+    ga = empty(a.shape)
+    _C.sigmoid_backward(sigmoid(a), g, ga, *a.shape)
+    return (ga,)
+
+
+def tanh(a):
+    out = empty(a.shape)
+    _C.tanh(a, out, *a.shape)
+    return out
+
+
+def tanh_backward(a, g):
+    ga = empty(a.shape)
+    _C.tanh_backward(tanh(a), g, ga, *a.shape)
+    return (ga,)
+
+
+def softmax(a):
+    out = empty(a.shape)
+    _C.softmax(a, out, *a.shape)
+    return out
+
+
+def softmax_backward(a, g):
+    ga = empty(a.shape)
+    _C.softmax_backward(softmax(a), g, ga, *a.shape)
+    return (ga,)
+
+
+# Losses return a (1,) array holding the mean. The kernels give no gradient for
+# the target, so backward returns None there and check() skips it.
+
+def mse_loss(pred, target):
+    out = empty((1,))
+    _C.mse_loss(pred, target, out, *pred.shape)
+    return out
+
+
+def mse_loss_backward(pred, target, g):
+    gp = empty(pred.shape)
+    _C.mse_loss_backward(pred, target, g, gp, *pred.shape)
+    return gp, None
+
+
+def bce_loss(pred, target):
+    out = empty((1,))
+    _C.binary_cross_entropy(pred, target, out, *pred.shape)
+    return out
+
+
+def bce_loss_backward(pred, target, g):
+    gp = empty(pred.shape)
+    _C.binary_cross_entropy_backward(pred, target, g, gp, *pred.shape)
+    return gp, None
+
+
+def cross_entropy(logits, labels):
+    out = empty((1,))
+    _C.cross_entropy(logits, labels, out, *logits.shape)
+    return out
+
+
+def cross_entropy_backward(logits, labels, g):
+    gl = empty(logits.shape)
+    _C.cross_entropy_backward(logits, labels, g, gl, *logits.shape)
+    return gl, None
+
+
 A = rand((2, 4), seed=1)
 B = rand((2, 4), seed=2)
 C = rand((4, 3), seed=3)
 BIAS = rand((4,), seed=4)
-RELU_X = np.array([[-0.9, -0.4, 0.3, 0.8], [0.5, -0.7, -0.2, 0.6]], dtype=np.float32)  
+RELU_X = np.array([[-0.9, -0.4, 0.3, 0.8], [0.5, -0.7, -0.2, 0.6]], dtype=np.float32)
+PROBS = np.random.default_rng(6).uniform(0.1, 0.9, size=(2, 4)).astype(np.float32)  # bce preds in (0, 1)
+LABELS_01 = np.array([[0, 1, 1, 0], [1, 0, 0, 1]], dtype=np.float32)
+CLASS_LABELS = np.array([1, 3], dtype=np.uintp)  # one class index per row, stored as size_t
 
 CASES = [
     pytest.param(add, add_backward, (A, B), id="add"),
@@ -169,6 +249,12 @@ CASES = [
     pytest.param(sum_all, sum_all_backward, (A,), id="sum"),
     pytest.param(sum_rows, sum_rows_backward, (A,), id="sum_rows"),
     pytest.param(sum_cols, sum_cols_backward, (A,), id="sum_cols"),
+    pytest.param(sigmoid, sigmoid_backward, (A,), id="sigmoid"),
+    pytest.param(tanh, tanh_backward, (A,), id="tanh"),
+    pytest.param(softmax, softmax_backward, (A,), id="softmax"),
+    pytest.param(mse_loss, mse_loss_backward, (A, B), id="mse"),
+    pytest.param(bce_loss, bce_loss_backward, (PROBS, LABELS_01), id="bce"),
+    pytest.param(cross_entropy, cross_entropy_backward, (A, CLASS_LABELS), id="cross_entropy"),
 ]
 
 
@@ -177,6 +263,8 @@ def check(forward, backward, inputs, loss, grad_out):
     grads = backward(*inputs, grad_out)
 
     for j, x in enumerate(inputs):
+        if grads[j] is None:  # no gradient for this input (e.g. a loss target)
+            continue
         for i in range(x.size):
             plus = [t.copy() for t in inputs]
             minus = [t.copy() for t in inputs]
@@ -214,4 +302,13 @@ class TestBackward:
         out = forward(*inputs)
         check(forward, backward, inputs, loss=square_loss, grad_out=out)
 
-    # TODO add loss kernels when bindings exist (bce, mse)
+    def test_mse_loss(self, forward, backward, inputs):
+        # e2e: the op's output feeds into the mse kernel, and mse's backward gives grad_out
+        out = forward(*inputs).reshape(1, -1)
+        target = rand(out.shape, seed=6)
+
+        def loss(o):
+            return mse_loss(o.reshape(1, -1), target)[0]
+
+        grad_out, _ = mse_loss_backward(out, target, np.ones(1, dtype=np.float32))
+        check(forward, backward, inputs, loss=loss, grad_out=grad_out.reshape(forward(*inputs).shape))
