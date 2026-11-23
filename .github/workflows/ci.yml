@@ -41,3 +41,10 @@ jobs:
       - name: Run installed-package smoke tests
         working-directory: ${{ runner.temp }}
         run: '"$RUNNER_TEMP/package-test/bin/python" -I "$GITHUB_WORKSPACE/src/tests/test_package.py" -v'
+      - name: Install declared test dependencies
+        run: |
+          "$RUNNER_TEMP/package-test/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/package-test/bin/python" -m pip install --group dev
+      - name: Run all Python tests
+        working-directory: ${{ runner.temp }}
+        run: '"$RUNNER_TEMP/package-test/bin/python" -I -m pytest "$GITHUB_WORKSPACE/src/tests" --import-mode=importlib -v'
