@@ -2,6 +2,9 @@
 An implementation of functional operators that support tensors.
 """
 
+import array
+
+from tensormist import _C
 from tensormist.tensor import Tensor
 
 
@@ -19,5 +22,6 @@ def relu(x: Tensor) -> Tensor:
         A Tensor with the same shape as <x>, containing the element-wise
         ReLU results.
     """
-    # TODO
-    raise NotImplementedError
+    out = array.array("f", [0.0]) * x.numel
+    _C.relu(x._data, out, 1, x.numel)
+    return Tensor(out, x.shape)

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import array
 from collections.abc import Iterable
+from itertools import product
 from math import prod
 
 from tensormist.validation import check_add_shapes, check_matmul_shapes, validates_shape
@@ -54,12 +55,13 @@ class Tensor:
         if isinstance(data, (str, bytes, bytearray)) or not isinstance(data, Iterable):
             raise TypeError("Data must be an iterable of numbers.")
 
-        if isinstance(data, array.array):
-            if data.typecode != 'f' or data.itemsize != 4:
-                raise RuntimeError("Array must use 4-byte float32 storage.")
+        if isinstance(data, array.array) and (
+            data.typecode != "f" or data.itemsize != 4
+        ):
+            raise RuntimeError("Array must use 4-byte float32 storage.")
 
         try:
-            self._data = array.array('f', data)
+            self._data = array.array("f", data)
         except (TypeError, ValueError, OverflowError) as exc:
             raise TypeError("Data must contain valid numeric values.") from exc
 
@@ -72,8 +74,7 @@ class Tensor:
 
         if len(self._data) != expected_numel:
             raise ValueError(
-                f"Expected {expected_numel} elements, "
-                f"but received {len(self._data)}."
+                f"Expected {expected_numel} elements, but received {len(self._data)}."
             )
 
         # Shape: Store the tensor dimensions as metadata.
@@ -101,7 +102,7 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        return cls._from_array(array.array('f', [1.0]) * prod(shape), shape)
+        return cls._from_array(array.array("f", [1.0]) * prod(shape), shape)
 
     @classmethod
     @validates_shape
@@ -120,7 +121,7 @@ class Tensor:
             TypeError: If <shape> has an unsupported type.
             ValueError: If <shape> contains invalid dimensions.
         """
-        return cls._from_array(array.array('f', [0.0]) * prod(shape), shape)
+        return cls._from_array(array.array("f", [0.0]) * prod(shape), shape)
 
     @classmethod
     @validates_shape
@@ -150,15 +151,14 @@ class Tensor:
         if not isinstance(data, array.array):
             raise TypeError("Data must be an array.array.")
 
-        if data.typecode != 'f' or data.itemsize != 4:
+        if data.typecode != "f" or data.itemsize != 4:
             raise RuntimeError("Array must use 4-byte float32 storage.")
 
         expected_numel = prod(shape)
 
         if len(data) != expected_numel:
             raise ValueError(
-                f"Expected {expected_numel} elements, "
-                f"but received {len(data)}."
+                f"Expected {expected_numel} elements, but received {len(data)}."
             )
 
         tensor = cls.__new__(cls)
@@ -296,10 +296,65 @@ class Tensor:
         Outputs:
             A string representation of this tensor.
         """
-        # TODO
-        raise NotImplementedError
 
-    def __getitem__(self, key) -> float | Tensor:
+        def build_repr(shape):
+            nonlocal offset
+
+            if not shape:
+                value = self._data[offset]
+                offset += 1
+                return value
+
+            values = []
+            for _ in range(shape[0]):
+                values.append(build_repr(shape[1:]))
+
+            return values
+
+        offset = 0
+        nested_repr = build_repr(self._shape)
+        return f"{type(self).__name__}({nested_repr!r})"
+
+    def _flat_indices(
+        self, key: int | slice | tuple[int | slice, ...]
+    ) -> tuple[list[int], tuple[int, ...]]:
+        if isinstance(key, tuple):
+            specs = key
+        elif isinstance(key, (int, slice)) and not isinstance(key, bool):
+            specs = (key,)
+        else:
+            raise TypeError("Invalid tensor index.")
+
+        if len(specs) > self.ndim:
+            raise IndexError("Too many tensor indices.")
+
+        specs += (slice(None),) * (self.ndim - len(specs))
+        selected_axes = []
+        selected_shape = []
+
+        for size, dim in zip(self._shape, specs):
+            if isinstance(dim, int) and not isinstance(dim, bool):
+                index = dim + size if dim < 0 else dim
+                if index < 0 or index >= size:
+                    raise IndexError("Tensor index out of bounds.")
+                selected_axes.append((index,))
+            elif isinstance(dim, slice):
+                slice_indices = range(*dim.indices(size))
+                selected_axes.append(slice_indices)
+                selected_shape.append(len(slice_indices))
+            else:
+                raise TypeError("Invalid tensor index.")
+
+        selected_indices = []
+        for coords in product(*selected_axes):
+            curr = 0
+            for c, size in zip(coords, self._shape):
+                curr = curr * size + c
+            selected_indices.append(curr)
+
+        return selected_indices, tuple(selected_shape)
+
+    def __getitem__(self, key: int | slice | tuple[int | slice, ...]) -> float | Tensor:
         """
         Reads the value stored in the tensor at location <key>.
 
@@ -313,12 +368,17 @@ class Tensor:
 
         Raises:
             IndexError: If <key> is outside the tensor bounds.
-            TypeError: If <key> or <value> has an unsupported type.
+            TypeError: If <key> has an unsupported type.
         """
-        # TODO
-        raise NotImplementedError
+        selected_indices, selected_shape = self._flat_indices(key)
+        if not selected_shape:
+            return self._data[selected_indices[0]]
 
-    def __setitem__(self, key, value) -> None:
+        return Tensor((self._data[index] for index in selected_indices), selected_shape)
+
+    def __setitem__(
+        self, key: int | slice | tuple[int | slice, ...], value: float | Tensor
+    ) -> None:
         """
         Writes values into the tensor at location <key>.
 
@@ -337,5 +397,18 @@ class Tensor:
             ValueError: If <value> has a shape incompatible with the selected
                 elements.
         """
-        # TODO
-        raise NotImplementedError
+        selected_indices, selected_shape = self._flat_indices(key)
+
+        if isinstance(value, Tensor):
+            if value.shape != selected_shape:
+                raise ValueError(
+                    f"Expected a value with shape {selected_shape}, got {value.shape}."
+                )
+            values = value._data
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            values = [value] * len(selected_indices)
+        else:
+            raise TypeError("Value must be a number or a Tensor.")
+
+        for index, replacement in zip(selected_indices, values):
+            self._data[index] = replacement
