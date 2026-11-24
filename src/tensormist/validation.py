@@ -28,8 +28,24 @@ def _validate_shape(shape: tuple[int, ...]) -> None:
         TypeError: If <shape> is not a tuple of integers.
         ValueError: If <shape> contains invalid dimensions.
     """
-    # TODO
-    raise NotImplementedError
+    if not isinstance(shape, tuple):
+        raise TypeError(
+            f"Shape must be a tuple of integers, but received "
+            f"{type(shape).__name__}."
+        )
+
+    for dim in shape:
+        # bool is a subclass of int, so it must be rejected explicitly.
+        if isinstance(dim, bool) or not isinstance(dim, int):
+            raise TypeError(
+                f"Shape dimensions must be integers, but received "
+                f"{type(dim).__name__}."
+            )
+
+        if dim < 0:
+            raise ValueError(
+                f"Shape dimensions must be non-negative, but received {dim}."
+            )
 
 
 def _check_add_shapes(a: Tensor, b: Tensor) -> None:
