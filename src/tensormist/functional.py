@@ -21,7 +21,13 @@ def relu(x: Tensor) -> Tensor:
     Outputs:
         A Tensor with the same shape as <x>, containing the element-wise
         ReLU results.
+
+     Raises:
+        TypeError: If <x> is not a Tensor.    
     """
+    if not isinstance(x, Tensor):
+        raise TypeError("Argument is not a Tensor.")
+    
     out = array.array("f", [0.0]) * x.numel
     _C.relu(x._data, out, 1, x.numel)
     return Tensor(out, x.shape)
@@ -40,11 +46,31 @@ def sum(x: Tensor, dim: int = None) -> Tensor:
         If <dim> is 1 and <x> has shape (R, C), returns a Tensor with shape (R,), containing the sum of the columns of <x>.
 
     Raises:
-        TypeError: If <x> is not a Tensor.
+        TypeError: If <x> is not a Tensor or if <dim> is not an int.
         ValueError: If <dim>'s value is incorrect based on the shape of <x>.
     """
-    raise NotImplementedError
-
+    if not isinstance(x, Tensor):
+        raise TypeError("Argument is not a Tensor.")
+    
+    if dim is None:
+        out = Tensor.zeros(())
+        _C.sum(x._data, out._data, 1, x.numel)
+        return out
+    elif not isinstance(dim, int):
+        raise TypeError("Dimension argument is not an int.")
+    elif x.ndim != 2:
+        raise ValueError("Dimension argument is set but argument is not a 2D Tensor.")
+    elif dim == 0:
+        out = Tensor.zeros((x.shape[1],))
+        _C.sum_rows(x._data, out._data, x.shape[0], x.shape[1])
+        return out
+    elif dim == 1:
+        out = Tensor.zeros((x.shape[0],))
+        _C.sum_cols(x._data, out._data, x.shape[0], x.shape[1])
+        return out
+    else:
+        raise ValueError("Dimension argument is set incorrectly (i.e. not 0 or 1).")
+        
 def softmax(x: Tensor) -> Tensor:
     """
     Applies softmax function to <x>
@@ -58,7 +84,12 @@ def softmax(x: Tensor) -> Tensor:
     Raises:
         TypeError: If <x> is not a Tensor.    
     """
-    raise NotImplementedError
+    if not isinstance(x, Tensor):
+        raise TypeError("Argument is not a Tensor.")
+    
+    out = Tensor.zeros(x.shape)
+    _C.softmax(x._data, out._data, 1, x.numel)
+    return out
 
 def sigmoid(x: Tensor) -> Tensor:
     """
@@ -73,7 +104,12 @@ def sigmoid(x: Tensor) -> Tensor:
     Raises:
         TypeError: If <x> is not a Tensor.    
     """
-    raise NotImplementedError
+    if not isinstance(x, Tensor):
+        raise TypeError("Argument is not a Tensor.")
+    
+    out = Tensor.zeros(x.shape)
+    _C.sigmoid(x._data, out._data, 1, x.numel)
+    return out
 
 def binary_cross_entropy(pred: Tensor, target: Tensor) -> Tensor:
     """
@@ -90,10 +126,21 @@ def binary_cross_entropy(pred: Tensor, target: Tensor) -> Tensor:
         TypeError: If <pred> or <target> is not a Tensor.
         ValueError: If <pred> and <target> do not have the same shape.
     """
-    raise NotImplementedError
+    if not isinstance(pred, Tensor):
+        raise TypeError("First argument is not a Tensor.")
+    
+    if not isinstance(target, Tensor):
+        raise TypeError("Second argument is not a Tensor.")
+
+    if pred.shape != target.shape:
+        raise ValueError("Prediction and target tensors do not have the same shape.")
+
+    out = Tensor.zeros(())
+    _C.binary_cross_entropy(pred._data, target._data, out._data, 1, pred.numel)
+    return out
 
 def cross_entropy(logits: Tensor, target: Tensor) -> Tensor:
-     """
+    """
     Calculates cross-entropy loss of the unnormalized <logits> based on the <target> distribution
     
     Inputs:
@@ -107,7 +154,18 @@ def cross_entropy(logits: Tensor, target: Tensor) -> Tensor:
         TypeError: If <logits> or <target> is not a Tensor.
         ValueError: If <logits and <target> do not have the same shape.
     """
-    raise NotImplementedError
+    if not isinstance(logits, Tensor):
+        raise TypeError("First argument is not a Tensor.")
+    
+    if not isinstance(target, Tensor):
+        raise TypeError("Second argument is not a Tensor.")
+
+    if logits.shape != target.shape:
+        raise ValueError("Logits and target tensors do not have the same shape.")
+
+    out = Tensor.zeros(())
+    _C.cross_entropy(logits._data, target._data, out._data, 1, logits.numel)
+    return out
 
 def tanh(x: Tensor) -> Tensor:
     """
@@ -122,7 +180,12 @@ def tanh(x: Tensor) -> Tensor:
     Raises:
         TypeError: If <x> is not a Tensor.
     """
-    raise NotImplementedError
+    if not isinstance(x, Tensor):
+        raise TypeError("Argument is not a Tensor.")
+
+    out = Tensor.zeros(x.shape)
+    _C.tanh(x._data, out._data, 1, x.numel)
+    return out
 
 def mse_loss(pred: Tensor, target: Tensor) -> Tensor:
     """
@@ -139,4 +202,15 @@ def mse_loss(pred: Tensor, target: Tensor) -> Tensor:
        TypeError: If <pred> or <target> is not a Tensor.
        ValueError: If <pred> and <target> have different shapes.
     """
-    raise NotImplementedError
+    if not isinstance(pred, Tensor):
+        raise TypeError("First argument is not a Tensor.")
+
+    if not isinstance(target, Tensor):
+        raise TypeError("Second argument is not a Tensor.")
+
+    if pred.shape != target.shape:
+        raise ValueError("Prediction and target tensors do not have the same shape.")
+
+    out = Tensor.zeros(())
+    _C.mse_loss(pred._data, target._data, out._data, 1, pred.numel)
+    return out
