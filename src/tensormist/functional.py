@@ -3,6 +3,7 @@ An implementation of functional operators that support tensors.
 """
 
 import array
+import ctypes
 
 from tensormist import _C
 from tensormist.tensor import Tensor
@@ -28,9 +29,9 @@ def relu(x: Tensor) -> Tensor:
     if not isinstance(x, Tensor):
         raise TypeError("Argument is not a Tensor.")
     
-    out = array.array("f", [0.0]) * x.numel
-    _C.relu(x._data, out, 1, x.numel)
-    return Tensor(out, x.shape)
+    out = Tensor.zeros(x.shape)
+    _C.relu(x._data, out._data, 1, x.numel)
+    return out
 
 def sum(x: Tensor, dim: int = None) -> Tensor:
     """
@@ -54,7 +55,7 @@ def sum(x: Tensor, dim: int = None) -> Tensor:
     
     if dim is None:
         out = Tensor.zeros(())
-        _C.sum(x._data, out._data, 1, x.numel)
+        _C.sum(x._data, out._data, x.numel)
         return out
     elif not isinstance(dim, int):
         raise TypeError("Dimension argument is not an int.")
@@ -62,11 +63,11 @@ def sum(x: Tensor, dim: int = None) -> Tensor:
         raise ValueError("Dimension argument is set but argument is not a 2D Tensor.")
     elif dim == 0:
         out = Tensor.zeros((x.shape[1],))
-        _C.sum_rows(x._data, out._data, x.shape[0], x.shape[1])
+        _C.sum_cols(x._data, out._data, x.shape[0], x.shape[1])
         return out
     elif dim == 1:
         out = Tensor.zeros((x.shape[0],))
-        _C.sum_cols(x._data, out._data, x.shape[0], x.shape[1])
+        _C.sum_rows(x._data, out._data, x.shape[0], x.shape[1])
         return out
     else:
         raise ValueError("Dimension argument is set incorrectly (i.e. not 0 or 1).")
@@ -86,9 +87,18 @@ def softmax(x: Tensor) -> Tensor:
     """
     if not isinstance(x, Tensor):
         raise TypeError("Argument is not a Tensor.")
-    
+
+    if x.ndim == 1:
+        rows, cols = 1, x.shape[0]
+    elif x.ndim == 2:
+        rows, cols = x.shape
+    else:
+        raise ValueError("Softmax requires a 1D or 2D Tensor.")
+    if cols == 0:
+        raise ValueError("Softmax requires at least one class per row.")
+
     out = Tensor.zeros(x.shape)
-    _C.softmax(x._data, out._data, 1, x.numel)
+    _C.softmax(x._data, out._data, rows, cols)
     return out
 
 def sigmoid(x: Tensor) -> Tensor:
@@ -139,13 +149,14 @@ def binary_cross_entropy(pred: Tensor, target: Tensor) -> Tensor:
     _C.binary_cross_entropy(pred._data, target._data, out._data, 1, pred.numel)
     return out
 
-def cross_entropy(logits: Tensor, target: Tensor) -> Tensor:
+def cross_entropy(logits: Tensor, target: array.array) -> Tensor:
     """
     Calculates cross-entropy loss of the unnormalized <logits> based on the <target> distribution
     
     Inputs:
         logits: The input Tensor that corresponds to the unnormalized logits
-        target: The input Tensor that corresponds to the true, smooth labels
+        target: The input integer array that corresponds to the true, smooth labels
+        As different datatypes are supported by Tensor this can be either
 
     Outputs:
         A Tensor with shape (), containing the cross-entropy loss of <logits> based on <target>
@@ -157,14 +168,23 @@ def cross_entropy(logits: Tensor, target: Tensor) -> Tensor:
     if not isinstance(logits, Tensor):
         raise TypeError("First argument is not a Tensor.")
     
-    if not isinstance(target, Tensor):
-        raise TypeError("Second argument is not a Tensor.")
+    if logits.ndim != 2:
+        raise ValueError("Logits must have shape (batch_size, num_classes).")
+    rows, cols = logits.shape
+    if rows == 0 or cols == 0:
+        raise ValueError("Cross-entropy requires a nonempty batch and classes.")
 
-    if logits.shape != target.shape:
-        raise ValueError("Logits and target tensors do not have the same shape.")
+    if (not isinstance(target, array.array)
+            or target.typecode not in ("I", "L", "Q")
+            or target.itemsize != ctypes.sizeof(ctypes.c_size_t)):
+        raise TypeError("Labels must be a native-width unsigned integer array.")
+    if len(target) != rows:
+        raise ValueError(f"Expected {rows} class labels, got {len(target)}.")
+    if any(label >= cols for label in target):
+        raise ValueError(f"Class labels must be in the range [0, {cols}).")
 
     out = Tensor.zeros(())
-    _C.cross_entropy(logits._data, target._data, out._data, 1, logits.numel)
+    _C.cross_entropy(logits._data, target, out._data, rows, cols)
     return out
 
 def tanh(x: Tensor) -> Tensor:
