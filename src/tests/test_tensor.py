@@ -4,6 +4,7 @@ import itertools
 import pytest
 
 from tensormist import Tensor
+from tensormist.functional import relu
 
 # Values computed by the C kernels are covered in test_forward.py / test_backward.py.
 # These tests only cover the Python layer: storage, shapes, and validation.
@@ -47,7 +48,16 @@ class TestInit:
         assert t.numel == 20
         assert all(v == 0.0 for v in values(t))
 
-    @pytest.mark.parametrize("data, shape", [([0.0, 1.0, 2.0], (10, 20)), ([0.0, 1.0], (3,)), ([], (1,)), ([], ()), ([1.0, 2.0], ())])
+    @pytest.mark.parametrize(
+        "data, shape",
+        [
+            ([0.0, 1.0, 2.0], (10, 20)),
+            ([0.0, 1.0], (3,)),
+            ([], (1,)),
+            ([], ()),
+            ([1.0, 2.0], ()),
+        ],
+    )
     def test_data_shape_mismatch(self, data, shape):
         with pytest.raises(ValueError):
             Tensor(data, shape)
@@ -70,7 +80,9 @@ class TestInit:
     def test_wrong_array_typecode(self):
         with pytest.raises(RuntimeError) as exc:
             Tensor(array.array("d", [1.0, 2.0]), (2,))
-        assert exc.type is not NotImplementedError  # NotImplementedError subclasses RuntimeError
+        assert (
+            exc.type is not NotImplementedError
+        )  # NotImplementedError subclasses RuntimeError
 
     @pytest.mark.parametrize("factory", [Tensor.ones, Tensor.zeros])
     def test_factory_bad_shape(self, factory):
@@ -85,6 +97,16 @@ class TestIndexing:
         t = Tensor.zeros((2, 3))
         t[(1, 2)] = 5.0
         assert t[(1, 2)] == pytest.approx(5.0)
+
+    def test_mixed_indexing_and_assignment(self):
+        t = Tensor(range(12), (3, 4))
+
+        selected = t[1, 1:3]
+        assert selected.shape == (2,)
+        assert values(selected) == pytest.approx([5, 6])
+
+        t[1, 1:3] = Tensor([20.0, 30.0], (2,))
+        assert values(t[1]) == pytest.approx([4, 20, 30, 7])
 
     @pytest.mark.parametrize("idx", [(2, 0), (0, 3)])
     def test_out_of_bounds(self, idx):
@@ -104,6 +126,17 @@ class TestIndexing:
             t[(0, 0)] = "a"
 
 
+class TestFunctional:
+    def test_relu(self):
+        t = Tensor([-2.0, 0.0, 3.0, -4.0, 5.0, -6.0], (2, 3))
+
+        result = relu(t)
+
+        assert result.shape == t.shape
+        assert values(result) == pytest.approx([0.0, 0.0, 3.0, 0.0, 5.0, 0.0])
+        assert values(t) == pytest.approx([-2.0, 0.0, 3.0, -4.0, 5.0, -6.0])
+
+
 class TestOps:
     @pytest.mark.parametrize("a_shape, b_shape", [((2, 3), (2, 3)), ((2, 3), (3,))])
     def test_add_shape(self, a_shape, b_shape):
@@ -111,7 +144,10 @@ class TestOps:
         assert out.shape == a_shape
         assert out.numel == Tensor.zeros(a_shape).numel
 
-    @pytest.mark.parametrize("a_shape, b_shape", [((3,), (4,)), ((2, 3), (2,)), ((2, 3), (3, 2)), ((3,), (2, 3))])
+    @pytest.mark.parametrize(
+        "a_shape, b_shape",
+        [((3,), (4,)), ((2, 3), (2,)), ((2, 3), (3, 2)), ((3,), (2, 3))],
+    )
     def test_add_bad_shape(self, a_shape, b_shape):
         with pytest.raises(ValueError):
             Tensor.zeros(a_shape) + Tensor.zeros(b_shape)
@@ -131,13 +167,19 @@ class TestOps:
         with pytest.raises(TypeError):
             Tensor.zeros((2,)) * c
 
-    @pytest.mark.parametrize("a_shape, b_shape, out_shape", [((2, 3), (3, 4), (2, 4)), ((1, 5), (5, 1), (1, 1))])
+    @pytest.mark.parametrize(
+        "a_shape, b_shape, out_shape",
+        [((2, 3), (3, 4), (2, 4)), ((1, 5), (5, 1), (1, 1))],
+    )
     def test_matmul_shape(self, a_shape, b_shape, out_shape):
         out = Tensor.zeros(a_shape) @ Tensor.zeros(b_shape)
         assert out.shape == out_shape
         assert out.numel == out_shape[0] * out_shape[1]
 
-    @pytest.mark.parametrize("a_shape, b_shape", [((2, 3), (2, 3)), ((3,), (3, 2)), ((2, 3), (3,)), ((2, 2, 2), (2, 2))])
+    @pytest.mark.parametrize(
+        "a_shape, b_shape",
+        [((2, 3), (2, 3)), ((3,), (3, 2)), ((2, 3), (3,)), ((2, 2, 2), (2, 2))],
+    )
     def test_matmul_bad_shape(self, a_shape, b_shape):
         with pytest.raises(ValueError):
             Tensor.zeros(a_shape) @ Tensor.zeros(b_shape)

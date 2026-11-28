@@ -59,11 +59,15 @@ def _check_add_shapes(a: Tensor, b: Tensor) -> None:
         TypeError: If <a> or <b> is not a Tensor.
         ValueError: If <a> and <b> have incompatible shapes.
     """
-    if not isinstance(b, type(a)):
+    from tensormist.tensor import Tensor
+
+    if not isinstance(b, Tensor):
         raise TypeError("Both operands must be Tensor instances.")
 
-    # TODO
-    raise NotImplementedError
+    if a.shape != b.shape and not (
+        a.ndim == 2 and b.ndim == 1 and a.shape[1] == b.shape[0]
+    ):
+        raise ValueError("Operands do not have compatible shapes.")
 
 
 def _check_matmul_shapes(a: Tensor, b: Tensor) -> None:
@@ -76,11 +80,13 @@ def _check_matmul_shapes(a: Tensor, b: Tensor) -> None:
         TypeError: If <a> or <b> is not a Tensor.
         ValueError: If <a> and <b> have incompatible matrix dimensions.
     """
-    if not isinstance(b, type(a)):
+    from tensormist.tensor import Tensor
+
+    if not isinstance(b, Tensor):
         raise TypeError("Both operands must be Tensor instances.")
 
-    # TODO
-    raise NotImplementedError
+    if a.ndim != 2 or b.ndim != 2 or a.shape[1] != b.shape[0]:
+        raise ValueError("Dimensions of Tensors are incompatible for matrix multiplication.")
 
 
 # ==========================================
