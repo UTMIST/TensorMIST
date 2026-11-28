@@ -2,6 +2,7 @@
 #define TENSORMIST_OPS_H
 
 #include <stddef.h>
+#include <math.h>
 
 // macro for accessing contiguous row-major matrix: 
 #define AT(data, row, col, cols) ((data)[(row) * (cols) + (col)])
