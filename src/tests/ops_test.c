@@ -12,8 +12,8 @@ static void test_tm_add() {
     int n = 3;
 
     tm_add(a, b, out, m, n);
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++)
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++)
         {
             assert(AT(expected, i, j, n) == AT(out, i, j, n));
         }
@@ -31,9 +31,9 @@ static void test_tm_bias_add()
     int n = 3;
 
     tm_bias_add(a, bias, out, m, n);
-    for (int i = 0; i < m; i++)
+    for (size_t i = 0; i < m; i++)
     {
-        for (int j = 0; j < n; j++)
+        for (size_t j = 0; j < n; j++)
         {
             assert(AT(expected, i, j, n) == AT(out, i, j, n));
         }

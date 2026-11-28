@@ -4,21 +4,21 @@
 void tm_softmax(const float *input, float *out, size_t m, size_t n) {
     float total;
     float max_val;
-    for (int i = 0; i < m; i++) {
+    for (size_t i = 0; i < m; i++) {
         total = 0;
         max_val = -INFINITY;
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             if (AT(input, i, j, n) > max_val) {
                 max_val = AT(input, i, j, n);
             }
         }
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             total += expf(AT(input, i, j, n) - max_val);
         }
 
-        for (int j = 0; j < n; j++) {
+        for (size_t j = 0; j < n; j++) {
             AT(out, i, j, n) = expf(AT(input, i, j, n) - max_val) / total;
         }
     }
@@ -26,13 +26,13 @@ void tm_softmax(const float *input, float *out, size_t m, size_t n) {
 
 void tm_softmax_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
     float total;
-    for (int i = 0; i < m; i++){
+    for (size_t i = 0; i < m; i++){
         total = 0;
-        for (int j = 0; j < n; j++){
+        for (size_t j = 0; j < n; j++){
             total += AT(grad_out, i, j, n) * AT(out, i, j, n);
         }
 
-        for (int j = 0; j < n; j++){
+        for (size_t j = 0; j < n; j++){
             AT(grad_input, i, j, n) = AT(out, i, j, n) * (AT(grad_out, i, j, n) - total);
         }
     }
@@ -40,8 +40,8 @@ void tm_softmax_backward(const float *out, const float *grad_out, float *grad_in
 }
 
 void tm_sigmoid(const float *input, float *out, size_t m, size_t n){
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             AT(out, i, j, n) = 1 / (expf(-AT(input, i, j, n)) + 1);
         }
     }
@@ -49,8 +49,8 @@ void tm_sigmoid(const float *input, float *out, size_t m, size_t n){
 
 void tm_sigmoid_backward(const float *out, const float *grad_out, float *grad_input, size_t m, size_t n) {
     float x;
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             x = AT(out, i, j, n);
             AT(grad_input, i, j, n) = AT(grad_out, i, j, n) * (x) * (1 - x);
         }
@@ -122,8 +122,8 @@ void tm_cross_entropy_backward(const float *logits, const size_t *target, const 
 
 void tm_relu(const float *a, float *out, size_t m, size_t n){
     float x;
-    for (int i = 0; i < m; i++){
-        for (int j = 0; j < n; j++){
+    for (size_t i = 0; i < m; i++){
+        for (size_t j = 0; j < n; j++){
             x = AT(a, i, j, n);
             AT(out, i, j, n) = (x > 0) ? x : 0;
         }
@@ -133,8 +133,8 @@ void tm_relu(const float *a, float *out, size_t m, size_t n){
 
 void tm_relu_backward(const float *a, const float *grad_out, float *grad_in, size_t m, size_t n){
     int relu_grad;
-    for (int i = 0; i < m; i++){ 
-        for (int j = 0; j < n; j++){ 
+    for (size_t i = 0; i < m; i++){ 
+        for (size_t j = 0; j < n; j++){ 
             relu_grad = (AT(a, i, j, n) > 0) ? 1 : 0;
             AT(grad_in, i, j, n) = relu_grad * AT(grad_out, i, j, n);
         }
@@ -142,16 +142,16 @@ void tm_relu_backward(const float *a, const float *grad_out, float *grad_in, siz
 }
         
 void tm_add(const float *a, const float *b, float *out, size_t m, size_t n) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             AT(out, i, j, n) = AT(a, i, j, n) + AT(b, i, j, n);
         }
     }
 }
 
 void tm_add_backward(const float *grad_out, float *grad_a, float *grad_b, size_t m, size_t n) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
+    for (size_t i = 0; i < m; i++) {
+        for (size_t j = 0; j < n; j++) {
             AT(grad_a, i, j, n) = AT(grad_out, i, j, n);
             AT(grad_b, i, j, n) = AT(grad_out, i, j, n);
         }
@@ -160,9 +160,9 @@ void tm_add_backward(const float *grad_out, float *grad_a, float *grad_b, size_t
 
 void tm_bias_add(const float *a, const float *bias, float *out, size_t m, size_t n)
 {
-	for (int i = 0; i < m; i++)
+	for (size_t i = 0; i < m; i++)
 	{
-		for (int j = 0; j < n; j++)
+		for (size_t j = 0; j < n; j++)
 		{
 			AT(out, i, j, n) = AT(a, i, j, n) + AT(bias, j, 0, 1);
 		}
@@ -170,10 +170,10 @@ void tm_bias_add(const float *a, const float *bias, float *out, size_t m, size_t
 }
 void tm_bias_add_backward(const float *grad_out, float *grad_a, float *grad_bias, size_t m, size_t n)
 {
-	for (int j = 0; j < n; j++)
+	for (size_t j = 0; j < n; j++)
 	{
 		float running_bias_grad = 0;
-		for (int i = 0; i < m; i++)
+		for (size_t i = 0; i < m; i++)
 		{
 			AT(grad_a, i, j, n) = AT(grad_out, i, j, n);
 			running_bias_grad += AT(grad_out, i, j, n);
