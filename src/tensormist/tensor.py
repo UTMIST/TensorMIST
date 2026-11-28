@@ -9,7 +9,13 @@ from collections.abc import Iterable
 from itertools import product
 from math import prod
 
-from tensormist.validation import check_add_shapes, check_matmul_shapes, validates_shape
+from tensormist.validation import (
+    _check_equal_shapes,
+    check_add_shapes,
+    check_equal_shapes,
+    check_matmul_shapes,
+    validates_shape,
+)
 
 from tensormist import _C
 
@@ -201,30 +207,52 @@ class Tensor:
         return out
         
 
-    def __mul__(self, c: float) -> Tensor:
+    @check_equal_shapes
+    def __sub__(self, x: Tensor) -> Tensor:
+        """Subtract an equal-shape Tensor elementwise, returning a new Tensor."""
+        out = Tensor.zeros(self.shape)
+        _C.subtract(self._data, x._data, out._data, 1, self.numel)
+        return out
+
+    def __mul__(self, c: float | Tensor) -> Tensor:
         """
-        Performs scalar multiplication between this tensor and <c>.
+        Multiplies by a scalar or an equal-shape Tensor elementwise.
 
         Inputs:
-            c: The scalar multiplier.
+            c: A scalar multiplier or a Tensor with the same shape.
 
         Outputs:
             A new Tensor with the same shape as this tensor, containing each
             element multiplied by <c>.
 
         Raises:
-            TypeError: If <c> is not a real number.
+            TypeError: If <c> is neither a real number nor a Tensor.
+            ValueError: If a Tensor operand has a different shape.
         """
-        if isinstance(c, bool) or not isinstance(c, (int, float)):
-            raise TypeError("First operand is not a real number.")
-        
+        if isinstance(c, Tensor):
+            _check_equal_shapes(self, c)
+        elif isinstance(c, bool) or not isinstance(c, (int, float)):
+            raise TypeError("Second operand must be a real number or Tensor.")
+
         out = Tensor.zeros(self.shape)
-        
-        _C.scalar_multiply(self._data, c, out._data, 1, self.numel)
+        if isinstance(c, Tensor):
+            _C.multiply(self._data, c._data, out._data, 1, self.numel)
+        else:
+            _C.scalar_multiply(self._data, c, out._data, 1, self.numel)
 
         return out
 
     __rmul__ = __mul__
+
+    def transpose(self) -> Tensor:
+        """Return a new 2D Tensor with rows and columns exchanged."""
+        if self.ndim != 2:
+            raise ValueError("Transpose requires a 2D Tensor.")
+
+        rows, cols = self.shape
+        out = Tensor.zeros((cols, rows))
+        _C.transpose(self._data, out._data, rows, cols)
+        return out
 
     @check_matmul_shapes
     def __matmul__(self, x: Tensor) -> Tensor:

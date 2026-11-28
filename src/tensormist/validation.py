@@ -70,6 +70,16 @@ def _check_add_shapes(a: Tensor, b: Tensor) -> None:
         raise ValueError("Operands do not have compatible shapes.")
 
 
+def _check_equal_shapes(a: Tensor, b: Tensor) -> None:
+    """Require a Tensor with exactly the same shape, without broadcasting."""
+    from tensormist.tensor import Tensor
+
+    if not isinstance(b, Tensor):
+        raise TypeError("Both operands must be Tensor instances.")
+    if a.shape != b.shape:
+        raise ValueError("Operands must have the same shape.")
+
+
 def _check_matmul_shapes(a: Tensor, b: Tensor) -> None:
     """
     Checks whether <a> and <b> have compatible shapes for matrix
@@ -117,6 +127,17 @@ def check_add_shapes(method: Callable) -> Callable:
     @wraps(method)
     def wrapper(self: Tensor, x: Tensor) -> Tensor:
         _check_add_shapes(self, x)
+        return method(self, x)
+
+    return wrapper
+
+
+def check_equal_shapes(method: Callable) -> Callable:
+    """Validate equal-shape Tensor operands before <method> runs."""
+
+    @wraps(method)
+    def wrapper(self: Tensor, x: Tensor) -> Tensor:
+        _check_equal_shapes(self, x)
         return method(self, x)
 
     return wrapper
