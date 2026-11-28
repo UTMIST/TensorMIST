@@ -191,17 +191,10 @@ class Tensor:
             ValueError: If this tensor and <x> do not have compatible
                 shapes.
         """
-        if not isinstance(x, Tensor):
-            raise TypeError("Second argument is not a Tensor.")
-        
-        if not (self.shape == x.shape or
-                (self.ndim == 2 and x.ndim == 1 and self.shape[1] == x.shape[0])):
-            raise ValueError("Operands do not have compatible shapes.")
-
         out = Tensor.zeros(self.shape)
         
         if self.shape == x.shape:
-            _C.add(self._data, x._data, out._data, prod(shape[:-1]), self.shape[-1])
+            _C.add(self._data, x._data, out._data, 1, self.numel)
         else:
             _C.bias_add(self._data, x._data, out._data, self.shape[0], self.shape[1])
                         
@@ -222,12 +215,12 @@ class Tensor:
         Raises:
             TypeError: If <c> is not a real number.
         """
-        if not (isinstance(c, float) or isinstance(c, int)):
+        if isinstance(c, bool) or not isinstance(c, (int, float)):
             raise TypeError("First operand is not a real number.")
         
         out = Tensor.zeros(self.shape)
         
-        _C.scalar_multiply(self._data, c, out._data, prod(shape[:-1]), self.shape[-1])
+        _C.scalar_multiply(self._data, c, out._data, 1, self.numel)
 
         return out
 
@@ -252,12 +245,6 @@ class Tensor:
             ValueError: If the dimensions of this tensor and <x> are
                 incompatible for matrix multiplication.
         """
-        if not isinstance(x, Tensor):
-            raise TypeError("Second argument is not a Tensor.")
-
-        if not (self.ndim == 2 and x.ndim == 2 and self.shape[1] == x.shape[0]):
-            raise ValueError("Dimensions of Tensors are incompatible for matrix multiplication.")
-
         out = Tensor.zeros((self.shape[0], x.shape[1]))
         
         _C.matmul(self._data, x._data, out._data, self.shape[0], self.shape[1], x.shape[1])
