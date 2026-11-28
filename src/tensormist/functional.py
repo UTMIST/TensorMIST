@@ -7,6 +7,7 @@ import ctypes
 
 from tensormist import _C
 from tensormist.tensor import Tensor
+from tensormist.validation import _check_equal_shapes
 
 
 def relu(x: Tensor) -> Tensor:
@@ -139,11 +140,7 @@ def binary_cross_entropy(pred: Tensor, target: Tensor) -> Tensor:
     if not isinstance(pred, Tensor):
         raise TypeError("First argument is not a Tensor.")
     
-    if not isinstance(target, Tensor):
-        raise TypeError("Second argument is not a Tensor.")
-
-    if pred.shape != target.shape:
-        raise ValueError("Prediction and target tensors do not have the same shape.")
+    _check_equal_shapes(pred, target)
 
     out = Tensor.zeros(())
     _C.binary_cross_entropy(pred._data, target._data, out._data, 1, pred.numel)
@@ -225,11 +222,7 @@ def mse_loss(pred: Tensor, target: Tensor) -> Tensor:
     if not isinstance(pred, Tensor):
         raise TypeError("First argument is not a Tensor.")
 
-    if not isinstance(target, Tensor):
-        raise TypeError("Second argument is not a Tensor.")
-
-    if pred.shape != target.shape:
-        raise ValueError("Prediction and target tensors do not have the same shape.")
+    _check_equal_shapes(pred, target)
 
     out = Tensor.zeros(())
     _C.mse_loss(pred._data, target._data, out._data, 1, pred.numel)
